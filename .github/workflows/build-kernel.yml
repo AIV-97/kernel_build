@@ -57,9 +57,9 @@ jobs:
           export KBUILD_BUILD_USER="Fraschze97"
           export KBUILD_BUILD_HOST="gh.act_reborn"
 
-          make O=out clean
-          make O=out mrproper
-          make O=out ${{ env.KERNEL_CONFIG }}
+          make clean
+          make mrproper
+          make ${args} ${{ env.KERNEL_CONFIG }}
           make -j$(nproc) O=out CC=clang LLVM=1 LLVM_IAS=1
 
       - name: Upload Log to Telegram (if failed)
