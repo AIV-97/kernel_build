@@ -51,7 +51,8 @@ jobs:
                 CROSS_COMPILE=$GITHUB_WORKSPACE/toolchains/neutron-clang/bin/aarch64-linux-gnu- \
                 CROSS_COMPILE_ARM32=$GITHUB_WORKSPACE/toolchains/neutron-clang/bin/arm-linux-gnueabi-"
           cd kernel-source
-          ./scripts/clean.sh  # Clean up the kernel source tree
+          make clean
+          make mrproper
           make ${args} ${{ env.KERNEL_CONFIG }}
           make -j$(nproc --all) ${args}
 
