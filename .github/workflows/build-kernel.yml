@@ -22,12 +22,11 @@ jobs:
           sudo apt-get install -y bc ccache flex bison libssl-dev \
           make clang lld libelf-dev git unzip curl zip libncurses-dev
           sudo ln -s /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5 || true
-      - name: Pull toolchain
+      
+      - name: Pull Silont Clang
         run: |
-          git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 aarch64-linux-android-4.9
-          git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 arm-linux-androideabi-4.9
-          git clone https://github.com/xiangfeidexiaohuo/Snapdragon-LLVM.git clang
-          
+          git clone --depth=1 https://github.com/Silont-project/clang.git clang
+      
       - name: Pull kernel source
         run: |
           git clone --depth=1 ${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
@@ -37,27 +36,24 @@ jobs:
           cd kernel-source
           curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s v0.9.5
           cd ..
+      
       - name: Build kernel
         run: |
           export KBUILD_BUILD_USER="Fraschze97"
           export PATH=$GITHUB_WORKSPACE/clang/bin:${PATH}
           cd kernel-source
-          clang -v | tee ../build.log
-              make O=../out ARCH=arm64 ${{ env.BUILD_ARGS }} ${{ env.KERNEL_CONFIG }} 2>&1 | tee -a ../build.log
-              make -j$(nproc --all) O=../out ARCH=arm64 \
-              CLANG_TRIPLE=aarch64-linux-gnu- \
-              CROSS_COMPILE=$GITHUB_WORKSPACE/aarch64-linux-android-4.9/bin/aarch64-linux-android- \
-              CROSS_COMPILE_ARM32=$GITHUB_WORKSPACE/arm-linux-androideabi-4.9/bin/arm-linux-androideabi- \
-              2>&1 | tee -a ../build.log
-
+          clang --version | tee ../build.log
+            make O=../out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 ${{ env.KERNEL_CONFIG }} 2>&1 | tee -a ../build.log
+            make -j$(nproc --all) O=../out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 2>&1 | tee -a ../build.log
+      
       - name: Upload Log to Telegram (if failed)
         if: failure()
         env:
-           BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
-           CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TG_CHAT_ID }}
         run: |
-           curl -F document=@"build.log" \
-           "https://api.telegram.org/bot$BOT_TOKEN/sendDocument?chat_id=$CHAT_ID&caption=Log%20Error%20Build%20Kernel"
+          curl -F document=@"build.log" \
+          "https://api.telegram.org/bot$BOT_TOKEN/sendDocument?chat_id=$CHAT_ID&caption=Log%20Error%20Build%20Kernel"
            
       - name: Clone AnyKernel3 & Copy Files
         run: |
