@@ -1,7 +1,9 @@
 name: Build Kernel
 
+
 on:
   workflow_dispatch:
+
 
 jobs:
   build-kernel:
@@ -20,7 +22,6 @@ jobs:
           sudo apt-get install -y bc ccache flex bison libssl-dev \
           make clang lld libelf-dev git unzip curl zip libncurses-dev
           sudo ln -s /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5 || true
-          
       - name: Pull toolchain
         run: |
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 aarch64-linux-android-4.9
@@ -36,31 +37,21 @@ jobs:
           cd kernel-source
           curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s v0.9.5
           cd ..
-          
       - name: Build kernel
         run: |
           export KBUILD_BUILD_USER="Fraschze97"
           export PATH=$GITHUB_WORKSPACE/clang/bin:${PATH}
-          args="ARCH=arm64 \
-                O=../out \
-                $BUILD_ARGS \
-                CLANG_TRIPLE=aarch64-linux-gnu- \
-                CROSS_COMPILE=$GITHUB_WORKSPACE/aarch64-linux-android-4.9/bin/aarch64-linux-android- \
-                CROSS_COMPILE_ARM32=$GITHUB_WORKSPACE/arm-linux-androideabi-4.9/bin/arm-linux-androideabi-"
+          args="                  ARCH=arm64 \
+                                  O=../out \
+                                  ${{ env.BUILD_ARGS }} \
+                                  CLANG_TRIPLE=aarch64-linux-gnu- \
+                                  CROSS_COMPILE=$GITHUB_WORKSPACE/aarch64-linux-android-4.9/bin/aarch64-linux-android- \
+                                  CROSS_COMPILE_ARM32=$GITHUB_WORKSPACE/arm-linux-androideabi-4.9/bin/arm-linux-androideabi- "
           cd kernel-source
-          clang -v &> ../build.log
-          make $args "$KERNEL_CONFIG" &>> ../build.log
-          make -j$(nproc --all) $args &>> ../build.log
-
-      - name: Upload Log to Telegram (if failed)
-        if: failure()
-        env:
-          BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
-          CHAT_ID: ${{ secrets.TG_CHAT_ID }}
-        run: |
-          curl -F document=@"build.log" \
-            "https://api.telegram.org/bot$BOT_TOKEN/sendDocument?chat_id=$CHAT_ID&caption=Log%20Error%20Build%20Kernel"
-
+          clang -v
+          make ${args} ${{ env.KERNEL_CONFIG }}
+          make -j$(nproc --all) ${args}
+  
       - name: Clone AnyKernel3 & Copy Files
         run: |
           git clone --depth=1 "$ANYKERNEL_SOURCE" -b "$ANYKERNEL_SOURCE_BRANCH" AnyKernel3
@@ -101,3 +92,12 @@ jobs:
             -F chat_id=$CHAT_ID \
             -F caption="DreamsKernel build $BUILD_DATE" \
             https://api.telegram.org/bot$BOT_TOKEN/sendDocument
+
+      - name: Upload Log to Telegram (if failed)
+        if: failure()
+        env:
+          BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+        run: |
+          curl -F document=@"build.log" \
+            "https://api.telegram.org/bot$BOT_TOKEN/sendDocument?chat_id=$CHAT_ID&caption=Log%20Error%20Build%20Kernel"
