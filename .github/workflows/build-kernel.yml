@@ -25,7 +25,7 @@ jobs:
       
       - name: Pull Silont Clang
         run: |
-          git clone --depth=1 https://github.com/Silont-project/clang.git clang
+          git clone --depth=1 https://github.com/silont-project/silont-clang clang
       
       - name: Pull kernel source
         run: |
