@@ -42,19 +42,25 @@ jobs:
 
       - name: Build kernel
         run: |
+          export PATH="$HOME/toolchains/neutron-clang/bin:$PATH"
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export CLANG_TRIPLE=aarch64-linux-gnu-
+          export CROSS_COMPILE=aarch64-linux-gnu-
+          export CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+          export LD=ld.lld
+          export AR=llvm-ar
+          export NM=llvm-nm
+          export OBJCOPY=llvm-objcopy
+          export OBJDUMP=llvm-objdump
+          export STRIP=llvm-strip
           export KBUILD_BUILD_USER="Fraschze97"
-          export PATH=$GITHUB_WORKSPACE/toolchains/neutron-clang/bin:${PATH}  # Ensure Neutron Clang is in PATH
-          args="ARCH=arm64 \
-                O=../out \
-                ${{ env.BUILD_ARGS }} \
-                CLANG_TRIPLE=aarch64-linux-gnu- \
-                CROSS_COMPILE=$GITHUB_WORKSPACE/toolchains/neutron-clang/bin/aarch64-linux-gnu- \
-                CROSS_COMPILE_ARM32=$GITHUB_WORKSPACE/toolchains/neutron-clang/bin/arm-linux-gnueabi-"
-          cd kernel-source
-          make clean
-          make mrproper
-          make ${args} ${{ env.KERNEL_CONFIG }}
-          make -j$(nproc --all) ${args}
+          export KBUILD_BUILD_HOST="gh.act_reborn"
+
+          make O=out clean
+          make O=out mrproper
+          make O=out ${{ env.KERNEL_CONFIG }}
+          make -j$(nproc) O=out CC=clang LLVM=1 LLVM_IAS=1
 
       - name: Upload Log to Telegram (if failed)
         if: failure()
