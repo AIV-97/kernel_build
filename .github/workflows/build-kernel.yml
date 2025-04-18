@@ -26,7 +26,7 @@ jobs:
       - name: Setup Neutron Clang Toolchain Path
         run: |
           echo "Adding Neutron Clang to PATH"
-          echo "/home/runner/toolchains/neutron-clang/bin" >> $GITHUB_ENV
+          echo "PATH=/home/runner/toolchains/neutron-clang/bin:$PATH" >> $GITHUB_ENV
           echo "Path added successfully"
 
       - name: Pull toolchain (Neutron Clang)
