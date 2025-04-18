@@ -8,6 +8,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Mulai sesi tmate sebelum build
+      - name: Setup tmate (interaktif SSH)
+        uses: mxschmitt/action-tmate@v4
+        with:
+          ssh: true
+        id: tmate
+
+      - name: Wait for tmate session ready
+        run: tmate wait tmate-ready
+
+      - name: Show SSH details
+        run: |
+          echo "===== CONNECT ====="
+          echo "SSH: $(tmate display -p '#{tmate_ssh}')"
+          echo "Web: $(tmate display -p '#{tmate_web}')"
+
+      # Kamu bisa jeda di sini sampai terhubung, baru lanjut
+      - name: Debug snapshot
+        run: |
+          ps aux | head -n 20
+          top -b -n 1 | head -n 20
+          ls -lh scripts/dtc
+      
       - name: Setup environment
         run: |
           echo "ANYKERNEL_SOURCE=$(cat config.env | grep -w "ANYKERNEL_SOURCE" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
