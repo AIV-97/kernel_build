@@ -25,7 +25,7 @@ jobs:
       
       - name: Pull Silont Clang
         run: |
-          git clone --depth=1 https://github.com/silont-project/silont-clang clang
+          git clone --depth=1 https://github.com/Neutron-Toolchains/clang.git clang
       
       - name: Pull kernel source
         run: |
@@ -39,12 +39,19 @@ jobs:
       
       - name: Build kernel
         run: |
-          export KBUILD_BUILD_USER="Fraschze97"
-          export PATH=$GITHUB_WORKSPACE/clang/bin:${PATH}
           cd kernel-source
-          clang --version | tee ../build.log
-            make O=../out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 ${{ env.KERNEL_CONFIG }} 2>&1 | tee -a ../build.log
-            make -j$(nproc --all) O=../out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1 2>&1 | tee -a ../build.log
+          export KBUILD_BUILD_USER="Fraschze97"
+          export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
+
+          clang -v
+
+          make O=../out ARCH=arm64 \
+          ${{ env.BUILD_ARGS }} \
+          CC=clang LLVM=1 LLVM_IAS=1 \
+          ${{ env.KERNEL_CONFIG }}
+
+          make -j$(nproc) O=../out ARCH=arm64 \
+          CC=clang LLVM=1 LLVM_IAS=1
       
       - name: Upload Log to Telegram (if failed)
         if: failure()
