@@ -6,39 +6,37 @@ on:
 jobs:
   build-kernel:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-
-      - name: Load config.env to environment
+      - uses: actions/checkout@v4
+      - name: Setup environment
         run: |
-          set -a
-          source config.env
-          set +a
-
-      - name: Install dependencies
-        run: |
+          echo "ANYKERNEL_SOURCE=$(cat config.env | grep -w "ANYKERNEL_SOURCE" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
+          echo "ANYKERNEL_SOURCE_BRANCH=$(cat config.env | grep -w "ANYKERNEL_SOURCE_BRANCH" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
+          echo "KERNEL_SOURCE=$(cat config.env | grep -w "KERNEL_SOURCE" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
+          echo "KERNEL_SOURCE_BRANCH=$(cat config.env | grep -w "KERNEL_SOURCE_BRANCH" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
+          echo "KERNEL_CONFIG=$(cat config.env | grep -w "KERNEL_CONFIG" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
+          echo "BUILD_ARGS=$(cat config.env | grep -w "BUILD_ARGS" | head -n 1 | cut -d ":" -f 2)" >> $GITHUB_ENV
           sudo apt-get update
           sudo apt-get install -y bc ccache flex bison libssl-dev \
-              make clang lld libelf-dev git unzip curl zip libncurses-dev
+          make clang lld libelf-dev git unzip curl zip libncurses-dev
           sudo ln -s /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5 || true
-
+          
       - name: Pull toolchain
         run: |
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 aarch64-linux-android-4.9
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 arm-linux-androideabi-4.9
           git clone https://github.com/xiangfeidexiaohuo/Snapdragon-LLVM.git clang
-
+          
       - name: Pull kernel source
         run: |
-          git clone --depth=1 "$KERNEL_SOURCE" -b "$KERNEL_SOURCE_BRANCH" kernel-source
-
-      - name: Integrate KernelSU
+          git clone --depth=1 ${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
+          
+      - name: KernelSU
         run: |
           cd kernel-source
           curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s v0.9.5
-
+          cd ..
+          
       - name: Build kernel
         run: |
           export KBUILD_BUILD_USER="Fraschze97"
