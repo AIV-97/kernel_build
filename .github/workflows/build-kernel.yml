@@ -69,16 +69,26 @@ jobs:
             cp out/arch/arm64/boot/dtbo.img AnyKernel3/dtbo.img
           fi
 
+      - name: Set build date
+        run: echo "BUILD_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+
+      - name: Make flashable zip
+        run: |
+             cd AnyKernel3
+             zip -r ../DreamsKernel-${{ env.BUILD_DATE }}.zip ./*
+
       - name: Upload kernel to artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AnyKernel3_kernel
-          path: AnyKernel3/*
-          
+        name: DreamsKernel-${{ env.BUILD_DATE }}
+        path: DreamsKernel-${{ env.BUILD_DATE }}.zip
+
       - name: Upload to Telegram
-         run: |
-              curl -F chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
-             -F document=@out/AnyKernel3/flashable.zip \
-             -F caption="Build kernel selesai oleh GitHub Actions" \
-             https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
-      
+         env:
+         BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+         CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+        run: |
+            curl -F document=@"DreamsKernel-${{ env.BUILD_DATE }}.zip" \
+            -F chat_id=$CHAT_ID \
+            -F caption="DreamsKernel build ${{ env.BUILD_DATE }}" \
+         https://api.telegram.org/bot$BOT_TOKEN/sendDocument
