@@ -84,11 +84,11 @@ jobs:
         path: DreamsKernel-${{ env.BUILD_DATE }}.zip
 
       - name: Upload to Telegram
-         env:
-         BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
-         CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+        env:
+        BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+        CHAT_ID: ${{ secrets.TG_CHAT_ID }}
         run: |
             curl -F document=@"DreamsKernel-${{ env.BUILD_DATE }}.zip" \
             -F chat_id=$CHAT_ID \
             -F caption="DreamsKernel build ${{ env.BUILD_DATE }}" \
-         https://api.telegram.org/bot$BOT_TOKEN/sendDocument
+             https://api.telegram.org/bot$BOT_TOKEN/sendDocument
