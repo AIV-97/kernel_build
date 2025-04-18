@@ -1,67 +1,71 @@
 name: Build Kernel
 
-
 on:
   workflow_dispatch:
-
 
 jobs:
   build-kernel:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup environment
         run: |
-          echo "ANYKERNEL_SOURCE=$(cat config.env | grep -w "ANYKERNEL_SOURCE" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
-          echo "ANYKERNEL_SOURCE_BRANCH=$(cat config.env | grep -w "ANYKERNEL_SOURCE_BRANCH" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
-          echo "KERNEL_SOURCE=$(cat config.env | grep -w "KERNEL_SOURCE" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
-          echo "KERNEL_SOURCE_BRANCH=$(cat config.env | grep -w "KERNEL_SOURCE_BRANCH" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
-          echo "KERNEL_CONFIG=$(cat config.env | grep -w "KERNEL_CONFIG" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
-          echo "BUILD_ARGS=$(cat config.env | grep -w "BUILD_ARGS" | head -n 1 | cut -d ":" -f 2)" >> $GITHUB_ENV
+          echo "ANYKERNEL_SOURCE=$(grep -w "ANYKERNEL_SOURCE" config.env | cut -d "=" -f2)" >> $GITHUB_ENV
+          echo "ANYKERNEL_SOURCE_BRANCH=$(grep -w "ANYKERNEL_SOURCE_BRANCH" config.env | cut -d "=" -f2)" >> $GITHUB_ENV
+          echo "KERNEL_SOURCE=$(grep -w "KERNEL_SOURCE" config.env | cut -d "=" -f2)" >> $GITHUB_ENV
+          echo "KERNEL_SOURCE_BRANCH=$(grep -w "KERNEL_SOURCE_BRANCH" config.env | cut -d "=" -f2)" >> $GITHUB_ENV
+          echo "KERNEL_CONFIG=$(grep -w "KERNEL_CONFIG" config.env | cut -d "=" -f2)" >> $GITHUB_ENV
+          echo "BUILD_ARGS=$(grep -w "BUILD_ARGS" config.env | cut -d ":" -f2)" >> $GITHUB_ENV
           sudo apt-get update
           sudo apt-get install -y bc ccache flex bison libssl-dev \
-          make clang lld libelf-dev git unzip curl zip libncurses-dev
+            make clang lld libelf-dev git unzip curl zip libncurses-dev
           sudo ln -s /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5 || true
-      
-      - name: Pull Silont Clang
+
+      - name: Pull Clang Toolchain (Neutron Clang)
         run: |
-          git clone --depth=1 https://github.com/Neutron-Toolchains/clang.git clang
-      
+          mkdir -p $HOME/toolchains/neutron-clang
+          cd $HOME/toolchains/neutron-clang
+          bash <(curl -s "https://raw.githubusercontent.com/Neutron-Toolchains/antman/main/antman") -S
+
       - name: Pull kernel source
         run: |
           git clone --depth=1 ${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
-          
-      - name: KernelSU
+
+      - name: KernelSU Setup
         run: |
           cd kernel-source
           curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s v0.9.5
           cd ..
-      
-      - name: Build kernel
+
+      - name: Build kernel using Clang
         run: |
-          cd kernel-source
+          export PATH=$HOME/toolchains/neutron-clang/bin:$PATH
           export KBUILD_BUILD_USER="Fraschze97"
-          export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
+          export BUILD_UNIQUE=$(date +%s)
+          echo "BUILD_UNIQUE=$BUILD_UNIQUE" >> $GITHUB_ENV
+          args="ARCH=arm64 \
+            O=../out \
+            ${{ env.BUILD_ARGS }} \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=$HOME/toolchains/neutron-clang/bin/aarch64-linux-gnu-"
 
-          clang -v
+          cd kernel-source
+          clang --version
+          make ${args} ${{ env.KERNEL_CONFIG }}
+          make -j$(nproc --all) ${args}
 
-          make O=../out ARCH=arm64 \
-          ${{ env.BUILD_ARGS }} \
-          CC=clang LLVM=1 LLVM_IAS=1 \
-          ${{ env.KERNEL_CONFIG }}
-
-          make -j$(nproc) O=../out ARCH=arm64 \
-          CC=clang LLVM=1 LLVM_IAS=1
-      
       - name: Upload Log to Telegram (if failed)
         if: failure()
         env:
           BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           CHAT_ID: ${{ secrets.TG_CHAT_ID }}
         run: |
+          dmesg > build.log || touch build.log
           curl -F document=@"build.log" \
-          "https://api.telegram.org/bot$BOT_TOKEN/sendDocument?chat_id=$CHAT_ID&caption=Log%20Error%20Build%20Kernel"
-           
+            "https://api.telegram.org/bot$BOT_TOKEN/sendDocument?chat_id=$CHAT_ID&caption=Log%20Error%20Build%20Kernel"
+
       - name: Clone AnyKernel3 & Copy Files
         run: |
           git clone --depth=1 "$ANYKERNEL_SOURCE" -b "$ANYKERNEL_SOURCE_BRANCH" AnyKernel3
@@ -80,25 +84,26 @@ jobs:
           fi
 
       - name: Set build date
-        run: echo "BUILD_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+        run: |
+          echo "BUILD_DATE=$(date +'%d-%m-%y')" >> $GITHUB_ENV
 
       - name: Make flashable zip
         run: |
           cd AnyKernel3
-          zip -r "../DreamsKernel-${BUILD_DATE}.zip" * .[^.]* -x "*.git*" -x "README.md"
+          zip -r "../Dreams-Main-perf-chime-${{ env.BUILD_UNIQUE }}-${{ env.BUILD_DATE }}.zip" * .[^.]* -x "*.git*" -x "README.md"
 
       - name: Upload to GitHub Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: DreamsKernel-${{ env.BUILD_DATE }}
-          path: DreamsKernel-${{ env.BUILD_DATE }}.zip
+          name: Dreams-Main-perf-chime-${{ env.BUILD_UNIQUE }}-${{ env.BUILD_DATE }}
+          path: Dreams-Main-perf-chime-${{ env.BUILD_UNIQUE }}-${{ env.BUILD_DATE }}.zip
 
       - name: Upload to Telegram
         env:
           BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           CHAT_ID: ${{ secrets.TG_CHAT_ID }}
         run: |
-          curl -F document=@"DreamsKernel-${BUILD_DATE}.zip" \
+          curl -F document=@"Dreams-Main-perf-chime-${{ env.BUILD_UNIQUE }}-${{ env.BUILD_DATE }}.zip" \
             -F chat_id=$CHAT_ID \
-            -F caption="DreamsKernel build $BUILD_DATE" \
+            -F caption="DreamsKernel build ${{ env.BUILD_DATE }}" \
             https://api.telegram.org/bot$BOT_TOKEN/sendDocument
