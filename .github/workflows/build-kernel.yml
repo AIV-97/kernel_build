@@ -74,3 +74,11 @@ jobs:
         with:
           name: AnyKernel3_kernel
           path: AnyKernel3/*
+          
+      - name: Upload to Telegram
+         run: |
+              curl -F chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
+             -F document=@out/AnyKernel3/flashable.zip \
+             -F caption="Build kernel selesai oleh GitHub Actions" \
+             https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument
+      
