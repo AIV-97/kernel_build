@@ -48,16 +48,16 @@ jobs:
                                   CLANG_TRIPLE=aarch64-linux-gnu- \
                                   CROSS_COMPILE=$GITHUB_WORKSPACE/aarch64-linux-android-4.9/bin/aarch64-linux-android- \
                                   CROSS_COMPILE_ARM32=$GITHUB_WORKSPACE/arm-linux-androideabi-4.9/bin/arm-linux-androideabi- "
-          cd kernel-source
-          clang -v
-          make ${args} ${{ env.KERNEL_CONFIG }}
-          make -j$(nproc --all) ${args}
+                   cd kernel-source
+                   clang -v
+                   make ${args} ${{ env.KERNEL_CONFIG }}
+                   make -j$(nproc --all) ${args}
 
       - name: Upload Log ke Telegram
           if: failure()
-         run: |
-            curl -F document=@"build.log" \
-            "https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendDocument?chat_id=${{ secrets.CHAT_ID }}&caption=Log%20Error%20Build%20Kernel"  
+        run: |
+          curl -F document=@"build.log" \
+          "https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendDocument?chat_id=${{ secrets.CHAT_ID }}&caption=Log%20Error%20Build%20Kernel"  
 
       - name: Package kernel
         run: |
