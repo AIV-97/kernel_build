@@ -1,4 +1,4 @@
-name: Build Kernel
+name: Build Kernel with patch
 
 
 on:
@@ -22,14 +22,12 @@ jobs:
           sudo apt-get install -y bc ccache flex bison libssl-dev \
           make clang lld libelf-dev git unzip curl zip libncurses-dev
           sudo ln -s /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5 || true
+          
       - name: Pull toolchain
         run: |
+          git clone --depth=1 https://github.com/kdrag0n/proton-clang.git clang
           git clone --depth=1 https://github.com/mvaisakh/gcc-arm64 gcc64
           git clone --depth=1 https://github.com/mvaisakh/gcc-arm gcc32
-          mkdir -p clang && cd clang
-          wget ${{ env.CLANG_URL }} -O clang.tar.gz
-          tar -xzf clang.tar.gz
-          cd ..
           
       - name: Pull kernel source
         run: |
@@ -38,9 +36,9 @@ jobs:
       - name: Apply Fast Charging Patch
         run: |
           cd kernel-source
-          git apply $GITHUB_WORKSPACE/fastchg_patch.diff
+          git apply --allow-empty $GITHUB_WORKSPACE/fastchg_patch.diff
           cd ..
-         
+
       - name: KernelSU
         run: |
           cd kernel-source
@@ -50,13 +48,20 @@ jobs:
       - name: Build kernel
         run: |
           export KBUILD_BUILD_USER="Fraschze97"
-          export PATH=$GITHUB_WORKSPACE/clang/bin:${PATH}
-          args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }}"
+          export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
+
           cd kernel-source
-          clang -v
-          make ${args} ${{ env.KERNEL_CONFIG }}
-          make -j$(nproc --all) ${args}
-          
+
+          clang --version  # Verifikasi Clang terdeteksi
+
+          make O=out ARCH=arm64 ${{ env.KERNEL_CONFIG }}
+
+          make -j$(nproc --all) O=out \
+            ARCH=arm64 \
+            CC=clang \
+            CROSS_COMPILE=$GITHUB_WORKSPACE/aarch64-linux-android-4.9/bin/aarch64-linux-android- \
+            CROSS_COMPILE_ARM32=$GITHUB_WORKSPACE/arm-linux-androideabi-4.9/bin/arm-linux-androideabi-
+
       - name: Package kernel
         run: |
           git clone --depth=1 ${{ env.ANYKERNEL_SOURCE }} -b ${{ env.ANYKERNEL_SOURCE_BRANCH }} AnyKernel3 && rm -rf AnyKernel3/.git AnyKernel3/.github AnyKernel3/LICENSE AnyKernel3/README.md
