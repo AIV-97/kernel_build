@@ -40,27 +40,28 @@ jobs:
         run: |
           git clone --depth=1 ${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
           
-- name: Compile Kernel
-  run: |
-    export PATH="$HOME/toolchains/neutron-clang/bin:$PATH"
-    export ARCH=arm64
-    export SUBARCH=arm64
-    export CLANG_TRIPLE=aarch64-linux-gnu-
-    export CROSS_COMPILE=aarch64-linux-gnu-
-    export CROSS_COMPILE_ARM32=arm-linux-gnueabi-
-    export LD=ld.lld
-    export AR=llvm-ar
-    export NM=llvm-nm
-    export OBJCOPY=llvm-objcopy
-    export OBJDUMP=llvm-objdump
-    export STRIP=llvm-strip
-    export KBUILD_BUILD_USER="Fraschze97"
-    export KBUILD_BUILD_HOST="github-actions"
+      - name: Compile Kernel
+        run: |
+          export PATH="$HOME/toolchains/neutron-clang/bin:$PATH"
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export CLANG_TRIPLE=aarch64-linux-gnu-
+          export CROSS_COMPILE=aarch64-linux-gnu-
+          export CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+          export LD=ld.lld
+          export AR=llvm-ar
+          export NM=llvm-nm
+          export OBJCOPY=llvm-objcopy
+          export OBJDUMP=llvm-objdump
+          export STRIP=llvm-strip
+          export KBUILD_BUILD_USER="Fraschze97"
+          export KBUILD_BUILD_HOST="github-actions"
 
-    make O=out clean
-    make O=out mrproper
-    make O=out ${{ env.KERNEL_CONFIG }}
-    make -j$(nproc) O=out CC=clang LLVM=1 LLVM_IAS=1
+              make O=out clean
+              make O=out mrproper
+              make O=out ${{ env.KERNEL_CONFIG }}
+              make -j$(nproc) O=out CC=clang LLVM=1 LLVM_IAS=1
+    
       - name: Upload Log to Telegram (if failed)
         if: failure()
         env:
