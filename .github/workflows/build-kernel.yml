@@ -6,83 +6,57 @@ on:
 jobs:
   build-kernel:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup environment
         run: |
-          set -ex
-          # Manual parsing karena BUILD_ARGS pakai titik dua
-          ANYKERNEL_SOURCE=$(grep '^ANYKERNEL_SOURCE=' config.env | cut -d= -f2-)
-          ANYKERNEL_SOURCE_BRANCH=$(grep '^ANYKERNEL_SOURCE_BRANCH=' config.env | cut -d= -f2-)
-          KERNEL_SOURCE=$(grep '^KERNEL_SOURCE=' config.env | cut -d= -f2-)
-          KERNEL_SOURCE_BRANCH=$(grep '^KERNEL_SOURCE_BRANCH=' config.env | cut -d= -f2-)
-          KERNEL_CONFIG=$(grep '^KERNEL_CONFIG=' config.env | cut -d= -f2-)
-          BUILD_ARGS=$(grep '^BUILD_ARGS:' config.env | cut -d: -f2-)
-
-          echo "ANYKERNEL_SOURCE=$ANYKERNEL_SOURCE" >> $GITHUB_ENV
-          echo "ANYKERNEL_SOURCE_BRANCH=$ANYKERNEL_SOURCE_BRANCH" >> $GITHUB_ENV
-          echo "KERNEL_SOURCE=$KERNEL_SOURCE" >> $GITHUB_ENV
-          echo "KERNEL_SOURCE_BRANCH=$KERNEL_SOURCE_BRANCH" >> $GITHUB_ENV
-          echo "KERNEL_CONFIG=$KERNEL_CONFIG" >> $GITHUB_ENV
-          echo "BUILD_ARGS=$BUILD_ARGS" >> $GITHUB_ENV
-
+          echo "ANYKERNEL_SOURCE=$(grep -m1 -w "ANYKERNEL_SOURCE" config.env | cut -d= -f2-)" >> $GITHUB_ENV
+          echo "ANYKERNEL_SOURCE_BRANCH=$(grep -m1 -w "ANYKERNEL_SOURCE_BRANCH" config.env | cut -d= -f2-)" >> $GITHUB_ENV
+          echo "KERNEL_SOURCE=$(grep -m1 -w "KERNEL_SOURCE" config.env | cut -d= -f2-)" >> $GITHUB_ENV
+          echo "KERNEL_SOURCE_BRANCH=$(grep -m1 -w "KERNEL_SOURCE_BRANCH" config.env | cut -d= -f2-)" >> $GITHUB_ENV
+          echo "KERNEL_CONFIG=$(grep -m1 -w "KERNEL_CONFIG" config.env | cut -d= -f2-)" >> $GITHUB_ENV
+          echo "BUILD_ARGS=$(grep -m1 -w "BUILD_ARGS" config.env | cut -d: -f2-)" >> $GITHUB_ENV
           sudo apt-get update
           sudo apt-get install -y bc ccache flex bison libssl-dev \
-            make clang lld libelf-dev git unzip curl zip libncurses-dev
-          sudo ln -sf /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5 || true
+          make clang lld libelf-dev git unzip curl zip libncurses-dev
+          sudo ln -s /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5 || true
 
       - name: Pull toolchain
         run: |
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 aarch64-linux-android-4.9
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 arm-linux-androideabi-4.9
-          git clone --depth=1 https://github.com/xiangfeidexiaohuo/Snapdragon-LLVM.git clang
+          git clone https://github.com/xiangfeidexiaohuo/Snapdragon-LLVM.git clang
 
       - name: Pull kernel source
         run: |
-          git clone --depth=1 "$KERNEL_SOURCE" -b "$KERNEL_SOURCE_BRANCH" kernel-source
+          git clone --depth=1 ${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
 
-      - name: Add KernelSU
+      - name: KernelSU
         run: |
           cd kernel-source
           curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s v0.9.5
+          cd ..
 
       - name: Build kernel
         run: |
-          export KBUILD_BUILD_USER="Fraschze"
+          set -e
+          export KBUILD_BUILD_USER="Fraschze97"
           export PATH=$GITHUB_WORKSPACE/clang/bin:${PATH}
           args="ARCH=arm64 \
                 O=../out \
-                $BUILD_ARGS \
+                ${{ env.BUILD_ARGS }} \
                 CLANG_TRIPLE=aarch64-linux-gnu- \
                 CROSS_COMPILE=$GITHUB_WORKSPACE/aarch64-linux-android-4.9/bin/aarch64-linux-android- \
                 CROSS_COMPILE_ARM32=$GITHUB_WORKSPACE/arm-linux-androideabi-4.9/bin/arm-linux-androideabi-"
           cd kernel-source
           clang -v
-          {
-            make ${args} $KERNEL_CONFIG
-            make -j$(nproc --all) ${args}
-          } |& tee $GITHUB_WORKSPACE/build.log
+          make ${args} ${{ env.KERNEL_CONFIG }}
+          make -j$(nproc --all) ${args}
 
-      - name: Upload Log to Telegram (if failed)
-        if: failure()
-        env:
-          BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
-          CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+      - name: Package kernel
         run: |
-          echo "Build failed. Uploading log..."
-          if [[ -f build.log ]]; then
-            curl -F document=@"build.log" \
-              "https://api.telegram.org/bot$BOT_TOKEN/sendDocument?chat_id=$CHAT_ID&caption=Build%20Log%20(FAILED)"
-          else
-            echo "No build.log file found to upload!"
-          fi
-
-      - name: Clone AnyKernel3 & Copy Files
-        run: |
-          git clone --depth=1 "$ANYKERNEL_SOURCE" -b "$ANYKERNEL_SOURCE_BRANCH" AnyKernel3
-          rm -rf AnyKernel3/.git* AnyKernel3/LICENSE AnyKernel3/README.md
+          git clone --depth=1 ${{ env.ANYKERNEL_SOURCE }} -b ${{ env.ANYKERNEL_SOURCE_BRANCH }} AnyKernel3 && rm -rf AnyKernel3/.git AnyKernel3/.github AnyKernel3/LICENSE AnyKernel3/README.md
           if [[ -f out/arch/arm64/boot/Image.gz-dtb ]]; then
             cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/Image.gz-dtb
           elif [[ -f out/arch/arm64/boot/Image-dtb ]]; then
@@ -92,30 +66,42 @@ jobs:
           elif [[ -f out/arch/arm64/boot/Image ]]; then
             cp out/arch/arm64/boot/Image AnyKernel3/Image
           fi
-          if [[ -f out/arch/arm64/boot/dtbo.img ]]; then
+          if [ -f out/arch/arm64/boot/dtbo.img ]; then
             cp out/arch/arm64/boot/dtbo.img AnyKernel3/dtbo.img
           fi
-
-      - name: Set build date
-        run: echo "BUILD_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
 
       - name: Make flashable zip
         run: |
           cd AnyKernel3
-          zip -r "../DreamsKernel-${BUILD_DATE}.zip" * .[^.]* -x "*.git*" -x "README.md"
+          zip -r ../DreamsKernel-${{ github.run_number }}.zip * .[^.]* -x "*.git*" -x "README.md"
 
-      - name: Upload to GitHub Artifact
+      - name: Generate custom filename
+        run: |
+          BUILD_NUMBER=${{ github.run_number }}
+          DATE_STR=$(date +'%d%m%y')
+          FILENAME=DreamsKernel-Perf-${BUILD_NUMBER}-${DATE_STR}.zip
+          mv DreamsKernel-${BUILD_NUMBER}.zip "$FILENAME"
+          echo "FINAL_KERNEL_ZIP=$FILENAME" >> $GITHUB_ENV
+
+      - name: Upload kernel to artifact
         uses: actions/upload-artifact@v4
         with:
-          name: DreamsKernel-${{ env.BUILD_DATE }}
-          path: DreamsKernel-${{ env.BUILD_DATE }}.zip
+          name: ${{ env.FINAL_KERNEL_ZIP }}
+          path: ${{ env.FINAL_KERNEL_ZIP }}
 
       - name: Upload to Telegram
         env:
           BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           CHAT_ID: ${{ secrets.TG_CHAT_ID }}
         run: |
-          curl -F document=@"DreamsKernel-${BUILD_DATE}.zip" \
-            -F chat_id=$CHAT_ID \
-            -F caption="DreamsKernel build $BUILD_DATE" \
-            https://api.telegram.org/bot$BOT_TOKEN/sendDocument
+          curl -F document=@"${{ env.FINAL_KERNEL_ZIP }}" \
+          -F chat_id=$CHAT_ID \
+          -F caption="DreamsKernel Perf Build #${{ github.run_number }} - $(date +'%d/%m/%y')" \
+          https://api.telegram.org/bot$BOT_TOKEN/sendDocument
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: perf-${{ github.run_number }}
+          name: DreamsKernel Perf Build ${{ github.run_number }}
+          files: ${{ env.FINAL_KERNEL_ZIP }}
