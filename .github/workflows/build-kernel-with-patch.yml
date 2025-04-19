@@ -1,4 +1,4 @@
-name: Build Kernel
+name: Build Kernel with patch
 
 
 on:
@@ -35,9 +35,9 @@ jobs:
       - name: Apply Fast Charging Patch
         run: |
           cd kernel-source
-          git apply $GITHUB_WORKSPACE/fastchg_patch.diff
+          git apply --allow-empty $GITHUB_WORKSPACE/fastchg_patch.diff
           cd ..
-         
+
       - name: KernelSU
         run: |
           cd kernel-source
