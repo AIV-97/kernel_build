@@ -10,113 +10,112 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Load config & Setup environment
+      - name: Setup environment
         run: |
           set -ex
-          source config.env
+          # Manual parsing karena BUILD_ARGS pakai titik dua
+          ANYKERNEL_SOURCE=$(grep '^ANYKERNEL_SOURCE=' config.env | cut -d= -f2-)
+          ANYKERNEL_SOURCE_BRANCH=$(grep '^ANYKERNEL_SOURCE_BRANCH=' config.env | cut -d= -f2-)
+          KERNEL_SOURCE=$(grep '^KERNEL_SOURCE=' config.env | cut -d= -f2-)
+          KERNEL_SOURCE_BRANCH=$(grep '^KERNEL_SOURCE_BRANCH=' config.env | cut -d= -f2-)
+          KERNEL_CONFIG=$(grep '^KERNEL_CONFIG=' config.env | cut -d= -f2-)
+          BUILD_ARGS=$(grep '^BUILD_ARGS:' config.env | cut -d: -f2-)
+
           echo "ANYKERNEL_SOURCE=$ANYKERNEL_SOURCE" >> $GITHUB_ENV
           echo "ANYKERNEL_SOURCE_BRANCH=$ANYKERNEL_SOURCE_BRANCH" >> $GITHUB_ENV
           echo "KERNEL_SOURCE=$KERNEL_SOURCE" >> $GITHUB_ENV
           echo "KERNEL_SOURCE_BRANCH=$KERNEL_SOURCE_BRANCH" >> $GITHUB_ENV
           echo "KERNEL_CONFIG=$KERNEL_CONFIG" >> $GITHUB_ENV
           echo "BUILD_ARGS=$BUILD_ARGS" >> $GITHUB_ENV
+
           sudo apt-get update
-          sudo apt-get install -y bc ccache flex bison libssl-dev make clang lld libelf-dev git unzip curl zip libncurses-dev
+          sudo apt-get install -y bc ccache flex bison libssl-dev \
+            make clang lld libelf-dev git unzip curl zip libncurses-dev
           sudo ln -sf /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5 || true
 
-      - name: Clone Toolchains
+      - name: Pull toolchain
         run: |
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 aarch64-linux-android-4.9
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 arm-linux-androideabi-4.9
-          git clone --depth=1 https://github.com/xiangfeidexiaohuo/Snapdragon-LLVM clang
+          git clone --depth=1 https://github.com/xiangfeidexiaohuo/Snapdragon-LLVM.git clang
 
-      - name: Clone Kernel Source
+      - name: Pull kernel source
         run: |
-          git clone --depth=1 ${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
+          git clone --depth=1 "$KERNEL_SOURCE" -b "$KERNEL_SOURCE_BRANCH" kernel-source
 
-      - name: Apply KernelSU
+      - name: Add KernelSU
         run: |
           cd kernel-source
           curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s v0.9.5
-          cd ..
 
-      - name: Build Kernel
+      - name: Build kernel
         run: |
-          set -ex
           export KBUILD_BUILD_USER="Fraschze"
-          export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
-
+          export PATH=$GITHUB_WORKSPACE/clang/bin:${PATH}
+          args="ARCH=arm64 \
+                O=../out \
+                $BUILD_ARGS \
+                CLANG_TRIPLE=aarch64-linux-gnu- \
+                CROSS_COMPILE=$GITHUB_WORKSPACE/aarch64-linux-android-4.9/bin/aarch64-linux-android- \
+                CROSS_COMPILE_ARM32=$GITHUB_WORKSPACE/arm-linux-androideabi-4.9/bin/arm-linux-androideabi-"
           cd kernel-source
-          make O=../out ARCH=arm64 ${{ env.KERNEL_CONFIG }} \
-              CLANG_TRIPLE=aarch64-linux-gnu- \
-              CROSS_COMPILE=$GITHUB_WORKSPACE/aarch64-linux-android-4.9/bin/aarch64-linux-android- \
-              CROSS_COMPILE_ARM32=$GITHUB_WORKSPACE/arm-linux-androideabi-4.9/bin/arm-linux-androideabi-
+          clang -v
+          {
+            make ${args} $KERNEL_CONFIG
+            make -j$(nproc --all) ${args}
+          } |& tee $GITHUB_WORKSPACE/build.log
 
-          make -j$(nproc) O=../out ARCH=arm64 ${{ env.BUILD_ARGS }} \
-              CLANG_TRIPLE=aarch64-linux-gnu- \
-              CROSS_COMPILE=$GITHUB_WORKSPACE/aarch64-linux-android-4.9/bin/aarch64-linux-android- \
-              CROSS_COMPILE_ARM32=$GITHUB_WORKSPACE/arm-linux-androideabi-4.9/bin/arm-linux-androideabi-
-
-      - name: Upload Log to Telegram (if build fails)
+      - name: Upload Log to Telegram (if failed)
         if: failure()
         env:
           BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           CHAT_ID: ${{ secrets.TG_CHAT_ID }}
         run: |
           echo "Build failed. Uploading log..."
-          curl -F document=@"build.log" \
-               "https://api.telegram.org/bot$BOT_TOKEN/sendDocument?chat_id=$CHAT_ID&caption=Log%20Error%20Build%20Kernel"
+          if [[ -f build.log ]]; then
+            curl -F document=@"build.log" \
+              "https://api.telegram.org/bot$BOT_TOKEN/sendDocument?chat_id=$CHAT_ID&caption=Build%20Log%20(FAILED)"
+          else
+            echo "No build.log file found to upload!"
+          fi
 
-      - name: Clone AnyKernel3 & Copy Kernel Files
+      - name: Clone AnyKernel3 & Copy Files
         run: |
           git clone --depth=1 "$ANYKERNEL_SOURCE" -b "$ANYKERNEL_SOURCE_BRANCH" AnyKernel3
           rm -rf AnyKernel3/.git* AnyKernel3/LICENSE AnyKernel3/README.md
-
           if [[ -f out/arch/arm64/boot/Image.gz-dtb ]]; then
-            cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
+            cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/Image.gz-dtb
           elif [[ -f out/arch/arm64/boot/Image-dtb ]]; then
-            cp out/arch/arm64/boot/Image-dtb AnyKernel3/
+            cp out/arch/arm64/boot/Image-dtb AnyKernel3/Image-dtb
           elif [[ -f out/arch/arm64/boot/Image.gz ]]; then
-            cp out/arch/arm64/boot/Image.gz AnyKernel3/
+            cp out/arch/arm64/boot/Image.gz AnyKernel3/Image.gz
           elif [[ -f out/arch/arm64/boot/Image ]]; then
-            cp out/arch/arm64/boot/Image AnyKernel3/
+            cp out/arch/arm64/boot/Image AnyKernel3/Image
           fi
-
           if [[ -f out/arch/arm64/boot/dtbo.img ]]; then
-            cp out/arch/arm64/boot/dtbo.img AnyKernel3/
+            cp out/arch/arm64/boot/dtbo.img AnyKernel3/dtbo.img
           fi
 
-      - name: Set Build Date
+      - name: Set build date
         run: echo "BUILD_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
 
-      - name: Make Flashable ZIP
+      - name: Make flashable zip
         run: |
           cd AnyKernel3
           zip -r "../DreamsKernel-${BUILD_DATE}.zip" * .[^.]* -x "*.git*" -x "README.md"
 
-      - name: Upload ZIP to GitHub Artifact
+      - name: Upload to GitHub Artifact
         uses: actions/upload-artifact@v4
         with:
           name: DreamsKernel-${{ env.BUILD_DATE }}
           path: DreamsKernel-${{ env.BUILD_DATE }}.zip
 
-      - name: Upload ZIP to Telegram
+      - name: Upload to Telegram
         env:
           BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           CHAT_ID: ${{ secrets.TG_CHAT_ID }}
         run: |
-          echo "Uploading zip to Telegram..."
-          response=$(curl -s -w "%{http_code}" -o response.json \
-            -F document=@"DreamsKernel-${BUILD_DATE}.zip" \
+          curl -F document=@"DreamsKernel-${BUILD_DATE}.zip" \
             -F chat_id=$CHAT_ID \
-            -F caption="DreamsKernel build ${BUILD_DATE}" \
-            "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument")
-
-          if [[ "$response" != "200" ]]; then
-            echo "Upload to Telegram failed with HTTP code $response"
-            echo "Telegram response:"
-            cat response.json
-            exit 1
-          else
-            echo "Upload to Telegram successful!"
-          fi
+            -F caption="DreamsKernel build $BUILD_DATE" \
+            https://api.telegram.org/bot$BOT_TOKEN/sendDocument
