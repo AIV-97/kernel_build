@@ -57,10 +57,8 @@ jobs:
           export KBUILD_BUILD_USER="Fraschze97"
           export KBUILD_BUILD_HOST="github-actions"
 
-              make O=out clean
-              make O=out mrproper
-              make O=out ${{ env.KERNEL_CONFIG }}
-              make -j$(nproc) O=out CC=clang LLVM=1 LLVM_IAS=1
+            make O=../out ARCH=arm64 ${{ env.BUILD_ARGS }} ${{ env.KERNEL_CONFIG }} 2>&1 | tee -a ../build.log
+            make -j$(nproc --all) O=../out ARCH=arm64 CC=clang LLVM=1 LLVM_IAS=1
     
       - name: Upload Log to Telegram (if failed)
         if: failure()
