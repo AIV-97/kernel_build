@@ -1,0 +1,46 @@
+*** Begin Patch
+*** Update File: smb5-lib.c
+@@
+ #include <linux/jiffies.h>
++// Fast Charging Status Node Patch
++#include <linux/sysfs.h>
++#include <linux/kobject.h>
++
++static struct kobject *fastchg_kobj;
++
++static ssize_t charge_type_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
++{
++    const char *type = "Unknown";
++    // TODO: Ganti logika ini dengan deteksi nyata (HVDCP/PD)
++    if (true)
++        type = "Fast";
++    else
++        type = "Normal";
++    return sprintf(buf, "%s\n", type);
++}
++
++static struct kobj_attribute charge_type_attr = __ATTR_RO(charge_type);
++
++static int init_fastchg_sysfs(void)
++{
++    int ret;
++    fastchg_kobj = kobject_create_and_add("fastchg", kernel_kobj);
++    if (!fastchg_kobj)
++        return -ENOMEM;
++    ret = sysfs_create_file(fastchg_kobj, &charge_type_attr.attr);
++    if (ret)
++        kobject_put(fastchg_kobj);
++    return ret;
++}
+*** End Patch
+
+*** Begin Patch
+*** Update File: smb5-lib.c
+@@ /* end of file content, before module insertion */
++// Module init for fast charging sysfs
++static int __init smb5_fastchg_init(void)
++{
++    return init_fastchg_sysfs();
++}
++late_initcall(smb5_fastchg_init);
+*** End Patch
