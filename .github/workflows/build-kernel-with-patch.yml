@@ -40,6 +40,7 @@ jobs:
         run: |
           cd kernel-source
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/refs/heads/next/kernel/setup.sh" | bash -s next
+          cd ..
 
       - name: Apply Fast Charging Patch
         run: |
