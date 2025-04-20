@@ -27,16 +27,19 @@ jobs:
         run: |
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 aarch64-linux-android-4.9
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 arm-linux-androideabi-4.9
-          git clone --depth=1 https://gitlab.com/ZyCromerZ/sdclang-16.0.2.0 clang
+      - name: Download Clang
+        run: |
+          mkdir clang
+          curl -L https://github.com/ZyCromerZ/Clang/releases/download/17.0.2-20231009/Clang-17.0.2-20231009.tar.gz | tar -xz -C clang --strip-components=1
+          cd ..
 
       - name: Pull kernel source
         run: |
           git clone --depth=1 ${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
 
-      - name: KernelSU
+      - name: Install KernelSU setup
         run: |
-          cd kernel-source
-          curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s v0.9.5
+          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -
           cd ..
 
       - name: Apply Fast Charging Patch
