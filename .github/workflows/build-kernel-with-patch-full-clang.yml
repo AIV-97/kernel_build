@@ -1,4 +1,4 @@
-name: Build Kernel with patch full clang
+name: Build with patch-fullclang-ksu-susfs
 
 on:
   workflow_dispatch:
