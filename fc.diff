@@ -1,7 +1,7 @@
-diff --git a/drivers/power/supply/qcom/smb5-charger.c b/drivers/power/supply/qcom/smb5-charger.c
+diff --git a/drivers/power/supply/qcom/smb1398-charger.c b/drivers/power/supply/qcom/smb1398-charger.c
 index 1234567..89abcde 100644
---- a/drivers/power/supply/qcom/smb5-charger.c
-+++ b/drivers/power/supply/qcom/smb5-charger.c
+--- a/drivers/power/supply/qcom/smb1398-charger.c
++++ b/drivers/power/supply/qcom/smb1398-charger.c
 @@ -100,6 +100,10 @@
  #define DEFAULT_FLOAT_VOLT_UV 4400000
  #define DEFAULT_CHG_TERM_UA 100000
@@ -10,18 +10,18 @@ index 1234567..89abcde 100644
 +#define DEFAULT_FAST_CHG_CURRENT_UA 3000000
 +#define DEFAULT_FAST_FLOAT_VOLT_UV 9000000
 +
- struct smb5 {
+ struct smb1398 {
      ...
      int fastchg_current_ua;
-@@ -3000,6 +3004,14 @@ static int smb5_probe(struct platform_device *pdev)
-     smb5->chg_term_ua = DEFAULT_CHG_TERM_UA;
+@@ -3000,6 +3004,14 @@ static int smb1398_probe(struct platform_device *pdev)
+     smb1398->chg_term_ua = DEFAULT_CHG_TERM_UA;
 
-     smb5->chg_voltage_uv = DEFAULT_FLOAT_VOLT_UV;
+     smb1398->chg_voltage_uv = DEFAULT_FLOAT_VOLT_UV;
 +
 +    /* Apply fast charging defaults for PMI632 */
-+    if (of_device_is_compatible(pdev->dev.of_node, "qcom,pm632-smb5")) {
-+        smb5->fastchg_current_ua = DEFAULT_FAST_CHG_CURRENT_UA;
-+        smb5->chg_voltage_uv = DEFAULT_FAST_FLOAT_VOLT_UV;
++    if (of_device_is_compatible(pdev->dev.of_node, "qcom,pm632-smb1398")) {
++        smb1398->fastchg_current_ua = DEFAULT_FAST_CHG_CURRENT_UA;
++        smb1398->chg_voltage_uv = DEFAULT_FAST_FLOAT_VOLT_UV;
 +        dev_info(&pdev->dev, "PMI632: Fast charging activated (3A @ 9V)\n");
 +    }
 +
