@@ -28,10 +28,24 @@ jobs:
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 aarch64-linux-android-4.9
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 arm-linux-androideabi-4.9
           
-      - name: Download Clang
+      - name: Download Clang release
         run: |
-          mkdir clang
-          curl -L https://objects.githubusercontent.com/github-production-release-asset-2e65be/430970692/6d705b4e-1157-4f3a-a0fb-0dd34b24347c?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=releaseassetproduction%2F20250420%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20250420T114930Z&X-Amz-Expires=300&X-Amz-Signature=e9c7cbfc7025061d9189793a3f49805775064fe1b879ef3f5c13fb0945775e5f&X-Amz-SignedHeaders=host&response-content-disposition=attachment%3B%20filename%3DClang-21.0.0git-20250420.tar.gz&response-content-type=application%2Foctet-stream | tar -xz -C clang --strip-components=1
+          # URL release dari GitHub
+          RELEASE_URL="https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250420-release/sdclang-21.0.0git-20250420.tar.gz"
+          TARBALL_NAME="sdclang-21.0.0git-20250420.tar.gz"
+
+          # Mengunduh release
+          curl -L $RELEASE_URL -o clang/$TARBALL_NAME
+
+      - name: Extract Clang release
+        run: |
+          # Mengekstrak arsip
+          tar -xvzf clang/sdclang-21.0.0git-20250420.tar.gz -C clang/
+
+      - name: List extracted files
+        run: |
+          echo "Isi direktori setelah ekstraksi:"
+          ls -l clang/
           cd ..
 
       - name: Pull kernel source
