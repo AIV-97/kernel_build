@@ -27,7 +27,7 @@ jobs:
         run: |
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 aarch64-linux-android-4.9
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 arm-linux-androideabi-4.9
-          git clone --depth=1 https://github.com/kdrag0n/proton-clang clang
+          git clone --depth=1 https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 clang
 
       - name: Pull kernel source
         run: |
@@ -59,7 +59,7 @@ jobs:
           clang -v
           make clean && make mrproper
           make ${args} ${{ env.KERNEL_CONFIG }}
-          make -j$(nproc --all) ${args}
+          make -j$(nproc --all) ${args} LD=ld.lld
 
       - name: Package kernel
         run: |
