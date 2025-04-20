@@ -73,11 +73,20 @@ jobs:
         run: |
              cd AnyKernel3
              zip -r ../DreamsKernel-${{ env.BUILD_DATE }}.zip * .[^.]* -x "*.git*" -x "README.md"
+
+      - name: Rename zip with date and random number
+        run: |
+          DATE=$(date +%d%m%y)
+          RAND=$(shuf -i 1000-9999 -n 1)
+          NEW_NAME="Cassia-perf-${DATE}-${RAND}.zip"
+          mv DreamsKernel-${{ env.BUILD_DATE }}.zip "$NEW_NAME"
+          echo "NEW_ZIP_NAME=$NEW_NAME" >> $GITHUB_ENV
+          
       - name: Upload kernel to artifact
         uses: actions/upload-artifact@v4
         with:
-            name: DreamsKernel-${{ env.BUILD_DATE }}
-            path: DreamsKernel-${{ env.BUILD_DATE }}.zip
+          name: ${{ env.NEW_ZIP_NAME }}
+          path: ${{ env.NEW_ZIP_NAME }}
 
       - name: Upload to Telegram
         env:
