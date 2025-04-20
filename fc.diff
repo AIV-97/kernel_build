@@ -1,17 +1,27 @@
+From abcdef1234567890abcdef1234567890abcdef12 Mon Sep 17 00:00:00 2001
+From: YourName <you@example.com>
+Date: Sun, 20 Apr 2025 00:00:00 +0700
+Subject: [PATCH] Enable fast charging for PMI632
+
+---
+ drivers/power/supply/qcom/qpnp-smb5.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
 diff --git a/drivers/power/supply/qcom/qpnp-smb5.c b/drivers/power/supply/qcom/qpnp-smb5.c
-index abcdef1..1234567 100644
+index abc1234..def5678 100644
 --- a/drivers/power/supply/qcom/qpnp-smb5.c
 +++ b/drivers/power/supply/qcom/qpnp-smb5.c
-@@ -355,6 +355,13 @@
+@@ -355,6 +355,14 @@
          chg->param = smb5_pmi632_params;
          chg->name = "pmi632_charger";
- 
+
 +        pr_info("PMI632: Mengaktifkan fast charging 3A @ 9V\n");
 +        chg->fastchg_current_ua = 3000000;
 +        chg->float_voltage_uv = 9000000;
-+
-+        /* Jika ingin paksa input current limit juga */
 +        chg->default_icl_ua = 3000000;
++
++        /* Tambahan jika perlu update hardware limit */
++        chg->input_current_max_ua = 3000000;
 +
          /* PMI632 does not support PD */
          chg->pd_not_supported = true;
