@@ -25,19 +25,11 @@ jobs:
 
       - name: Pull toolchain
         run: |
+          mkdir -p clang
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 aarch64-linux-android-4.9
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 arm-linux-androideabi-4.9
-          
-      - name: Download Clang release
-        run: |
-          mkdir clang
-          curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250420-release/Clang-21.0.0git-20250420.tar.gz
-          tar -xvzf Clang-21.0.0git-20250420.tar.gz -C clang
-
-      - name: List extracted files
-        run: |
-          echo "Isi direktori setelah ekstraksi:"
-          ls -l clang/
+          mkdir -p clang
+          curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250420-release/Clang-21.0.0git-20250420.tar.gz | tar -xzv -C clang
           cd ..
 
       - name: Pull kernel source
