@@ -34,9 +34,9 @@ jobs:
       - name: Apply Fast Charging Patch
         run: |
           cd kernel-source
-          git apply --allow-empty $GITHUB_WORKSPACE/fastchg_patch.diff
-          git apply --allow-empty $GITHUB_WORKSPACE/fc.diff
-          git apply --allow-empty $GITHUB_WORKSPACE/voter.diff
+            patch -p1 --allow-empty < $GITHUB_WORKSPACE/fastchg_patch.diff
+            patch -p2 --allow-empty < $GITHUB_WORKSPACE/fc.diff
+            patch -p3 --allow-empty < $GITHUB_WORKSPACE/voter.diff
           cd ..         
 
       - name: KernelSU-Next SUSFS
