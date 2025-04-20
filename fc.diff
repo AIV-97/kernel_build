@@ -2,13 +2,16 @@ diff --git a/drivers/power/supply/qcom/qpnp-smb5.c b/drivers/power/supply/qcom/q
 index abcdef1..1234567 100644
 --- a/drivers/power/supply/qcom/qpnp-smb5.c
 +++ b/drivers/power/supply/qcom/qpnp-smb5.c
-@@ -356,6 +356,13 @@ static int smb5_probe(struct platform_device *pdev)
+@@ -355,6 +355,13 @@
          chg->param = smb5_pmi632_params;
          chg->name = "pmi632_charger";
-+
+ 
 +        pr_info("PMI632: Mengaktifkan fast charging 3A @ 9V\n");
 +        chg->fastchg_current_ua = 3000000;
 +        chg->float_voltage_uv = 9000000;
 +
-+        /* Optional: jika kamu ingin langsung force ICL 3A */
++        /* Jika ingin paksa input current limit juga */
 +        chg->default_icl_ua = 3000000;
++
+         /* PMI632 does not support PD */
+         chg->pd_not_supported = true;
