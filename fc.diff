@@ -32,3 +32,16 @@
 +		qcom,jeita-override = <1>;
 +	};
  };
+
+--- drivers/power/supply/pmic-voter.c
++++ drivers/power/supply/pmic-voter.c
+@@ -36,6 +36,10 @@
+ static int pmic_voter_notifier(struct notifier_block *nb, unsigned long event,
+ 				void *data)
+ {
++	/* Override JEITA restrictions */
++	if (event == PMIC_VOTER_EVENT_CHARGE_LIMIT) {
++		/* Allow fast charge override */
++	}
+ 	return NOTIFY_OK;
+ }
