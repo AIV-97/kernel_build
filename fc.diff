@@ -1,6 +1,6 @@
 --- arch/arm64/boot/dts/vendor/qcom/pmi632.dtsi
 +++ arch/arm64/boot/dts/vendor/qcom/pmi632.dtsi
-@@ -34,6 +34,18 @@
+@@ -34,6 +34,14 @@
  	interrupts = <0 103 0>;
  	#address-cells = <1>;
  	#size-cells = <0>;
@@ -8,27 +8,15 @@
  	pmic-voter {
  		compatible = "qcom,pmic-voter";
  	};
- 
-+	/* Menonaktifkan JEITA untuk mencegah pengaturan suhu otomatis */
++
++	/* Nonaktifkan JEITA dan izinkan bypass + override pengisian */
 +	qcom,disable-jeita = <1>;
-+	/* Mengaktifkan bypass JEITA untuk pengisian */
 +	qcom,jeita-bypass = <1>;
-+	
-+	/* Menyediakan batas pengisian override, untuk mengizinkan pengisian lebih cepat */
++
 +	charge_limit {
 +		qcom,jeita-override = <1>;
 +	};
-+	
+
  	pmi632_charger: qcom,qpnp-smb5 {
  		compatible = "qcom,qpnp-smb5";
  		reg = <0x68>;
-@@ -40,6 +52,7 @@
- 		interrupts = <0 58 0>;
- 		...
- 	};
- 
-+	/* Menambahkan override batas pengisian untuk baterai */
-+	charge_limit {
-+		qcom,jeita-override = <1>;
-+	};
- };
