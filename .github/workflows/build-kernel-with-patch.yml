@@ -42,12 +42,6 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/refs/heads/next/kernel/setup.sh" | bash -s next
           cd ..
 
-      - name: Apply Fast Charging Patch
-        run: |
-          cd kernel-source
-          git apply --allow-empty $GITHUB_WORKSPACE/fastchg_patch.diff
-          cd ..
-
       - name: Build kernel
         run: |
           export KBUILD_BUILD_USER="Fraschze97"
