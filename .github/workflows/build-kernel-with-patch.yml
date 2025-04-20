@@ -36,6 +36,12 @@ jobs:
         run: |
           git clone --depth=1 ${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
 
+      - name: Apply Fast Charging Patch
+        run: |
+          cd kernel-source
+          git apply --allow-empty $GITHUB_WORKSPACE/fastchg_patch.diff
+          cd ..         
+
       - name: KernelSU-Next
         run: |
           cd kernel-source
