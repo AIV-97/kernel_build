@@ -1,0 +1,30 @@
+diff --git a/drivers/power/supply/qcom/smb5-charger.c b/drivers/power/supply/qcom/smb5-charger.c
+index 1234567..89abcde 100644
+--- a/drivers/power/supply/qcom/smb5-charger.c
++++ b/drivers/power/supply/qcom/smb5-charger.c
+@@ -100,6 +100,10 @@
+ #define DEFAULT_FLOAT_VOLT_UV 4400000
+ #define DEFAULT_CHG_TERM_UA 100000
+
++/* Fast Charge Defaults */
++#define DEFAULT_FAST_CHG_CURRENT_UA 3000000
++#define DEFAULT_FAST_FLOAT_VOLT_UV 9000000
++
+ struct smb5 {
+     ...
+     int fastchg_current_ua;
+@@ -3000,6 +3004,14 @@ static int smb5_probe(struct platform_device *pdev)
+     smb5->chg_term_ua = DEFAULT_CHG_TERM_UA;
+
+     smb5->chg_voltage_uv = DEFAULT_FLOAT_VOLT_UV;
++
++    /* Apply fast charging defaults for PMI632 */
++    if (of_device_is_compatible(pdev->dev.of_node, "qcom,pm632-smb5")) {
++        smb5->fastchg_current_ua = DEFAULT_FAST_CHG_CURRENT_UA;
++        smb5->chg_voltage_uv = DEFAULT_FAST_FLOAT_VOLT_UV;
++        dev_info(&pdev->dev, "PMI632: Fast charging activated (3A @ 9V)\n");
++    }
++
+     ...
+     return 0;
+ }
