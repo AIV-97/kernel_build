@@ -46,7 +46,6 @@ jobs:
         run: |
           cd kernel-source
           git apply --allow-empty $GITHUB_WORKSPACE/fastchg_patch.diff
-          git apply --allow-empty $GITHUB_WORKSPACE/fc.diff
           cd ..
           
       - name: Build kernel
@@ -61,6 +60,8 @@ jobs:
                                   CROSS_COMPILE_ARM32=$GITHUB_WORKSPACE/arm-linux-androideabi-4.9/bin/arm-linux-androideabi- "
           cd kernel-source
           clang -v
+          make clean
+          make mrproper
           make ${args} ${{ env.KERNEL_CONFIG }}
           make -j$(nproc --all) ${args}
           
