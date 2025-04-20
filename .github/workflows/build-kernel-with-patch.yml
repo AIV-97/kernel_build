@@ -30,9 +30,9 @@ jobs:
           
       - name: Download Clang release
         run: |
-          # URL release dari GitHub
+          mkdir clang
           curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250420-release/Clang-21.0.0git-20250420.tar.gz
-          tar -xvzf clang/Clang-21.0.0git-20250420.tar.gz
+          tar -xvzf Clang-21.0.0git-20250420.tar.gz -C clang
 
       - name: List extracted files
         run: |
