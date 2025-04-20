@@ -31,8 +31,8 @@ jobs:
       - name: Download Clang release
         run: |
           # URL release dari GitHub
-          RELEASE_URL="https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250420-release/sdclang-21.0.0git-20250420.tar.gz"
-          TARBALL_NAME="sdclang-21.0.0git-20250420.tar.gz"
+          RELEASE_URL="https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250420.tar.gz"
+          TARBALL_NAME="21.0.0git-20250420.tar.gz"
 
           # Mengunduh release
           curl -L $RELEASE_URL -o clang/$TARBALL_NAME
