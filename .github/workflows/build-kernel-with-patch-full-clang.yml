@@ -39,7 +39,7 @@ jobs:
           git apply --allow-empty $GITHUB_WORKSPACE/voter.diff
           cd ..         
 
-      - name: KernelSU-Next
+      - name: KernelSU-Next SUSFS
         run: |
           cd kernel-source
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
