@@ -1,99 +1,111 @@
 name: Build with patch-fullclang-ksu-susfs
 
-on:
-  workflow_dispatch:
+on: workflow_dispatch:
 
-jobs:
-  build-kernel:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
+jobs: build-kernel: runs-on: ubuntu-22.04 steps: - uses: actions/checkout@v4
 
-      - name: Setup environment
-        run: |
-          echo "ANYKERNEL_SOURCE=$(cat config.env | grep -w "ANYKERNEL_SOURCE" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
-          echo "ANYKERNEL_SOURCE_BRANCH=$(cat config.env | grep -w "ANYKERNEL_SOURCE_BRANCH" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
-          echo "KERNEL_SOURCE=$(cat config.env | grep -w "KERNEL_SOURCE" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
-          echo "KERNEL_SOURCE_BRANCH=$(cat config.env | grep -w "KERNEL_SOURCE_BRANCH" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
-          echo "KERNEL_CONFIG=$(cat config.env | grep -w "KERNEL_CONFIG" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
-          echo "BUILD_ARGS=$(cat config.env | grep -w "BUILD_ARGS" | head -n 1 | cut -d ":" -f 2)" >> $GITHUB_ENV
-          sudo apt-get update
-          sudo apt install python2 libncurses5
-          sudo apt-get install libselinux-dev
+- name: Setup environment
+    run: |
+      echo "ANYKERNEL_SOURCE=$(cat config.env | grep -w \"ANYKERNEL_SOURCE\" | head -n 1 | cut -d \"=\" -f 2)" >> $GITHUB_ENV
+      echo "ANYKERNEL_SOURCE_BRANCH=$(cat config.env | grep -w \"ANYKERNEL_SOURCE_BRANCH\" | head -n 1 | cut -d \"=\" -f 2)" >> $GITHUB_ENV
+      echo "KERNEL_SOURCE=$(cat config.env | grep -w \"KERNEL_SOURCE\" | head -n 1 | cut -d \"=\" -f 2)" >> $GITHUB_ENV
+      echo "KERNEL_SOURCE_BRANCH=$(cat config.env | grep -w \"KERNEL_SOURCE_BRANCH\" | head -n 1 | cut -d \"=\" -f 2)" >> $GITHUB_ENV
+      echo "KERNEL_CONFIG=$(cat config.env | grep -w \"KERNEL_CONFIG\" | head -n 1 | cut -d \"=\" -f 2)" >> $GITHUB_ENV
+      echo "BUILD_ARGS=$(cat config.env | grep -w \"BUILD_ARGS\" | head -n 1 | cut -d \":\" -f 2)" >> $GITHUB_ENV
+      sudo apt-get update
+      sudo apt install python2 libncurses5
+      sudo apt-get install libselinux-dev
 
-      - name: Pull toolchain (Full Clang)
-        run: |
-          mkdir -p clang
-          curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250420-release/Clang-21.0.0git-20250420.tar.gz | tar -xzv -C clang
+  - name: Cache Clang Toolchain
+    uses: actions/cache@v4
+    with:
+      path: clang
+      key: clang-${{ hashFiles('config.env') }}-21.0.0
+      restore-keys: |
+        clang-
 
-      - name: Pull kernel source
-        run: |
-          git clone --depth=1 ${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
+  - name: Pull toolchain (Full Clang)
+    run: |
+      mkdir -p clang
+      curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250420-release/Clang-21.0.0git-20250420.tar.gz | tar -xzv -C clang
 
-      - name: Apply Fast Charging Patch
-        run: |
-          cd kernel-source
-          git apply --allow-empty $GITHUB_WORKSPACE/fastchg_patch.diff
-          cd ..   
-          
-      - name: KernelSU-Next SUSFS
-        run: |
-          cd kernel-source
-          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
-          cd ..
+  - name: Pull kernel source
+    run: |
+      git clone --depth=1 ${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
 
-      - name: Build kernel (Full Clang)
-        run: |
-          export KBUILD_BUILD_USER="Fraschze97"
-          export PATH=$GITHUB_WORKSPACE/clang/bin:${PATH}
-          args="                  ARCH=arm64 \
-                                  O=../out \
-                                  ${{ env.BUILD_ARGS }} \
-                                  LLVM=1 LLVM_IAS=1"
-          cd kernel-source
-          clang -v
-          make ${args} ${{ env.KERNEL_CONFIG }}
-          make -j$(nproc --all) ${args} LD=ld.lld
+  - name: Apply Fast Charging Patch
+    run: |
+      cd kernel-source
+      git apply --allow-empty $GITHUB_WORKSPACE/fastchg_patch.diff
+      cd ..   
 
-      - name: Package kernel
-        run: |
-          git clone --depth=1 ${{ env.ANYKERNEL_SOURCE }} -b ${{ env.ANYKERNEL_SOURCE_BRANCH }} AnyKernel3 && rm -rf AnyKernel3/.git AnyKernel3/.github AnyKernel3/LICENSE AnyKernel3/README.md
-          if [[ -f out/arch/arm64/boot/Image.gz-dtb ]]; then
-            cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/Image.gz-dtb
-          elif [[ -f out/arch/arm64/boot/Image-dtb ]]; then
-            cp out/arch/arm64/boot/Image-dtb AnyKernel3/Image-dtb
-          elif [[ -f out/arch/arm64/boot/Image.gz ]]; then
-            cp out/arch/arm64/boot/Image.gz AnyKernel3/Image.gz
-          elif [[ -f out/arch/arm64/boot/Image ]]; then
-            cp out/arch/arm64/boot/Image AnyKernel3/Image
-          fi
-          if [ -f out/arch/arm64/boot/dtbo.img ]; then
-            cp out/arch/arm64/boot/dtbo.img AnyKernel3/dtbo.img
-          fi
-          cd AnyKernel3
-          zip -r9 ../DreamsKernel.zip * -x "*.git*" -x "*.md"
-          cd ..
+  - name: KernelSU-Next SUSFS
+    run: |
+      cd kernel-source
+      curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
+      cd ..
 
-      - name: Rename zip with date and random number
-        run: |
-          DATE=$(date +%d%m%y)
-          RAND=$(shuf -i 1000-9999 -n 1)
-          NEW_NAME="Cassia-perf-${DATE}-${RAND}.zip"
-          mv DreamsKernel.zip "$NEW_NAME"
-          echo "NEW_ZIP_NAME=$NEW_NAME" >> $GITHUB_ENV
+  - name: Cache Kernel Output
+    uses: actions/cache@v4
+    with:
+      path: out
+      key: out-${{ env.KERNEL_CONFIG }}-${{ github.sha }}
+      restore-keys: |
+        out-${{ env.KERNEL_CONFIG }}-
 
-      - name: Upload kernel to artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.NEW_ZIP_NAME }}
-          path: ${{ env.NEW_ZIP_NAME }}
+  - name: Build kernel (Full Clang)
+    run: |
+      export KBUILD_BUILD_USER="Fraschze97"
+      export PATH=$GITHUB_WORKSPACE/clang/bin:${PATH}
+      args="                  ARCH=arm64 \
+                              O=../out \
+                              ${{ env.BUILD_ARGS }} \
+                              LLVM=1 LLVM_IAS=1"
+      cd kernel-source
+      clang -v
+      make ${args} ${{ env.KERNEL_CONFIG }}
+      make -j$(nproc --all) ${args} LD=ld.lld
 
-      - name: Upload to Telegram
-        env:
-          BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
-          CHAT_ID: ${{ secrets.TG_CHAT_ID }}
-        run: |
-          curl -F document=@"${{ env.NEW_ZIP_NAME }}" \
-               -F chat_id=$CHAT_ID \
-               -F caption="Cassia Kernel build ${{ env.NEW_ZIP_NAME }}" \
-               https://api.telegram.org/bot$BOT_TOKEN/sendDocument
+  - name: Package kernel
+    run: |
+      git clone --depth=1 ${{ env.ANYKERNEL_SOURCE }} -b ${{ env.ANYKERNEL_SOURCE_BRANCH }} AnyKernel3 && rm -rf AnyKernel3/.git AnyKernel3/.github AnyKernel3/LICENSE AnyKernel3/README.md
+      if [[ -f out/arch/arm64/boot/Image.gz-dtb ]]; then
+        cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/Image.gz-dtb
+      elif [[ -f out/arch/arm64/boot/Image-dtb ]]; then
+        cp out/arch/arm64/boot/Image-dtb AnyKernel3/Image-dtb
+      elif [[ -f out/arch/arm64/boot/Image.gz ]]; then
+        cp out/arch/arm64/boot/Image.gz AnyKernel3/Image.gz
+      elif [[ -f out/arch/arm64/boot/Image ]]; then
+        cp out/arch/arm64/boot/Image AnyKernel3/Image
+      fi
+      if [ -f out/arch/arm64/boot/dtbo.img ]; then
+        cp out/arch/arm64/boot/dtbo.img AnyKernel3/dtbo.img
+      fi
+      cd AnyKernel3
+      zip -r9 ../DreamsKernel.zip * -x "*.git*" -x "*.md"
+      cd ..
+
+  - name: Rename zip with date, codename, and commit
+    run: |
+      DATE=$(date +%d%m%y)
+      SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
+      RAND=$(shuf -i 1000-9999 -n 1)
+      NEW_NAME="Cassia-perf-chime-KSU-SUSFS-${DATE}-${SHORT_SHA}-${RAND}.zip"
+      mv DreamsKernel.zip "$NEW_NAME"
+      echo "NEW_ZIP_NAME=$NEW_NAME" >> $GITHUB_ENV
+
+  - name: Upload kernel to artifact
+    uses: actions/upload-artifact@v4
+    with:
+      name: ${{ env.NEW_ZIP_NAME }}
+      path: ${{ env.NEW_ZIP_NAME }}
+
+  - name: Upload to Telegram
+    env:
+      BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+      CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+    run: |
+      curl -F document=@"${{ env.NEW_ZIP_NAME }}" \
+           -F chat_id=$CHAT_ID \
+           -F caption="Cassia Kernel build ${{ env.NEW_ZIP_NAME }}" \
+           https://api.telegram.org/bot$BOT_TOKEN/sendDocument
