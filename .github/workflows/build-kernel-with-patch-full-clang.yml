@@ -26,7 +26,16 @@ jobs:
           mkdir -p clang
           curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250420-release/Clang-21.0.0git-20250420.tar.gz | tar -xzv -C clang
 
+      - name: Cache Kernel Source
+        uses: actions/cache@v3
+        with:
+          path: kernel-source
+          key: kernel-source-${{ runner.os }}-${{ hashFiles('**/kernel-source/**/*') }}
+          restore-keys: |
+            kernel-source-${{ runner.os }}-
+
       - name: Pull kernel source
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           git clone --depth=1 ${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
 
@@ -34,7 +43,7 @@ jobs:
         run: |
           cd kernel-source
           git apply --allow-empty $GITHUB_WORKSPACE/fastchg_patch.diff
-          cd ..   
+          cd ..
 
       - name: KernelSU-Next SUSFS
         run: |
@@ -42,7 +51,34 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
           cd ..
 
+      - name: Cache Clang Toolchain
+        uses: actions/cache@v3
+        with:
+          path: clang
+          key: clang-${{ runner.os }}-${{ hashFiles('**/clang/**/*') }}
+          restore-keys: |
+            clang-${{ runner.os }}-
+
+      - name: Cache Kernel Build Output
+        uses: actions/cache@v3
+        with:
+          path: out
+          key: kernel-build-${{ runner.os }}-${{ hashFiles('**/kernel-source/**/*') }}
+          restore-keys: |
+            kernel-build-${{ runner.os }}-
+
+      - name: Check if kernel is already built
+        id: check-build
+        run: |
+          if [ -f out/arch/arm64/boot/Image.gz-dtb ] || [ -f out/arch/arm64/boot/Image-dtb ] || [ -f out/arch/arm64/boot/Image.gz ] || [ -f out/arch/arm64/boot/Image ]; then
+            echo "Kernel already built. Skipping full build."
+            echo "skip_build=true" >> $GITHUB_ENV
+          else
+            echo "skip_build=false" >> $GITHUB_ENV
+          fi
+
       - name: Build kernel (Full Clang)
+        if: env.skip_build == 'false'
         run: |
           export KBUILD_BUILD_USER="Fraschze97"
           export PATH=$GITHUB_WORKSPACE/clang/bin:${PATH}
