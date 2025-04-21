@@ -30,7 +30,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: kernel-source
-          key: kernel-source-${{ runner.os }}-${{ hashFiles('**/kernel-source/**/*') }}
+          key: kernel-source-${{ runner.os }}-${{ hashFiles('kernel-source/*') }}
           restore-keys: |
             kernel-source-${{ runner.os }}-
 
@@ -63,7 +63,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: out
-          key: kernel-build-${{ runner.os }}-${{ hashFiles('**/kernel-source/**/*') }}
+          key: kernel-build-${{ runner.os }}-${{ hashFiles('kernel-source/**/*') }}
           restore-keys: |
             kernel-build-${{ runner.os }}-
 
