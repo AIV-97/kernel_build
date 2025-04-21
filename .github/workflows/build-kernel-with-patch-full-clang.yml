@@ -34,7 +34,13 @@ jobs:
         run: |
           cd kernel-source
           git apply --allow-empty $GITHUB_WORKSPACE/fastchg_patch.diff
-          cd ..         
+          cd ..   
+          
+      - name: KernelSU-Next SUSFS
+        run: |
+          cd kernel-source
+          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
+          cd ..
 
       - name: Build kernel (Full Clang)
         run: |
