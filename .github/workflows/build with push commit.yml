@@ -2,10 +2,10 @@ name: Build with push commit
 
 on:
   workflow_dispatch:
-  
+
 permissions:
   contents: write
-  
+
 jobs:
   build-kernel:
     runs-on: ubuntu-22.04
@@ -37,7 +37,7 @@ jobs:
         run: |
           cd kernel-source
           git apply --allow-empty $GITHUB_WORKSPACE/fastchg_patch.diff
-          cd ..   
+          cd ..
 
       - name: KernelSU-Next SUSFS
         run: |
@@ -49,12 +49,17 @@ jobs:
         if: success()
         run: |
           cd kernel-source
+
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add .
-          git commit -m "Auto: Apply KernelSU-Next & SUSFS patches via CI" || echo "No changes to commit"
-          git push https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:${{ env.KERNEL_SOURCE_BRANCH }}
+          if [ -n "$(git status --porcelain)" ]; then
+            git add .
+            git commit -m "Auto: Apply KernelSU-Next & SUSFS patches via CI"
+            git push https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:${{ env.KERNEL_SOURCE_BRANCH }}
+          else
+            echo "No changes to commit and push."
+          fi
 
       - name: Build kernel (Full Clang)
         run: |
