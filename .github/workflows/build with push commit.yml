@@ -1,12 +1,11 @@
 name: Build with push commit
 
-on: workflow_dispatch:
+    on: workflow_dispatch:
 
-permissions: contents: write
+    permissions: contents: write
 
 jobs: build-kernel: runs-on: ubuntu-22.04 steps: - uses: actions/checkout@v4
-
-- name: Setup environment
+  - name: Setup environment
     run: |
       echo "ANYKERNEL_SOURCE=$(grep -w 'ANYKERNEL_SOURCE' config.env | cut -d '=' -f2)" >> $GITHUB_ENV
       echo "ANYKERNEL_SOURCE_BRANCH=$(grep -w 'ANYKERNEL_SOURCE_BRANCH' config.env | cut -d '=' -f2)" >> $GITHUB_ENV
