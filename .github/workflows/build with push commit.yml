@@ -46,15 +46,14 @@ jobs:
           rm -rf KernelSU-Next/.git
           cd ..
 
+          if: success()
       - name: Commit & Push modified kernel source
-        if: success()
-        run: |
+        run: |                
           cd kernel-source
-
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-          if [ -n "$(git status --porcelain)" ]; then
+          if [ -n "$(git status --porcelain)" ];
+          
       - name: Commit Patch Changes (Stage 1)
         run: |
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
