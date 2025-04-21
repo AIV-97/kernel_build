@@ -1,5 +1,5 @@
-*** Begin Patch
-*** Update File: arch/arm64/boot/dts/vendor/qcom/pmi632.dtsi
+--- arch/arm64/boot/dts/vendor/qcom/pmi632.dtsi
++++ arch/arm64/boot/dts/vendor/qcom/pmi632.dtsi
 @@ -34,6 +34,18 @@
  	interrupts = <0 103 0>;
  	#address-cells = <1>;
@@ -32,4 +32,3 @@
 +		qcom,jeita-override = <1>;
 +	};
  };
-*** End Patch
