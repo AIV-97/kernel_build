@@ -53,7 +53,7 @@ jobs:
           cd kernel-source
           clang -v
           make ${args} ${{ env.KERNEL_CONFIG }}
-          make -j$(nproc --all) ${args} LD=ld.lld
+          make -j$(nproc --all) ${args}
 
       - name: Package kernel
         run: |
