@@ -55,8 +55,24 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
           if [ -n "$(git status --porcelain)" ]; then
-            git add .
-            git commit -m "Auto: Apply KernelSU-Next & SUSFS patches via CI"
+      - name: Commit Patch Changes (Stage 1)
+        run: |
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+          git add KernelSU-Next/kernel
+          git commit -m "Auto: Add KernelSU core files via CI" || echo "No core changes to commit"
+
+     - name: Commit Patch Changes (Stage 2)
+       run: |
+         git add KernelSU-Next/.gitignore KernelSU-Next/LICENSE drivers/kernelsu
+         git commit -m "Auto: Add KernelSU metadata and symlink via CI" || echo "No meta changes to commit"
+
+     - name: Push Changes with Retry
+       run: |
+         for i in {1..3}; do
+         git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:${{ env.KERNEL_SOURCE_BRANCH }} && break || sleep 10
+          done
             git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
             git push origin HEAD:${{ env.KERNEL_SOURCE_BRANCH }}
           else
