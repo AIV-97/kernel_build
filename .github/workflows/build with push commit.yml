@@ -45,28 +45,32 @@ jobs:
           rm -rf KernelSU-Next/.git
           cd ..
 
-      - name: Commit & Push modified kernel source
+      - name: Commit & Push patch changes only
         run: |
           cd kernel-source
 
-          echo "Menyiapkan Git user config"
+          echo "Menyiapkan konfigurasi Git..."
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          echo "Mengabaikan folder KernelSU-Next dari commit"
-          echo "KernelSU-Next/" >> .gitignore
+          echo "Membersihkan symlink atau folder KernelSU..."
+          [ -L drivers/kernelsu ] && rm drivers/kernelsu
+          rm -rf KernelSU-Next
 
-          echo "Menambahkan perubahan ke Git"
-          git add .
-          git reset KernelSU-Next/
+          echo "Menambahkan hanya file .patch dan .diff, kecuali dari KernelSU dan symlink..."
+            for file in $(find . -type f -iname "*.patch" -o -iname "*.diff"); do
+            if [[ "$file" != *"KernelSU-Next"* && "$file" != *"drivers/kernelsu"* ]]; then
+            git add "$file"
+            fi
+          done
 
-          echo "Memeriksa perubahan yang akan di-commit..."
-            if [ -n "$(git status --porcelain)" ]; then
-            echo "Perubahan terdeteksi, melakukan commit dan push..."
-            git commit -m "Auto: Apply patch and KernelSU changes via CI"
+          echo "Memeriksa perubahan patch yang akan di-commit..."
+            if [ -n "$(git diff --cached --name-only)" ]; then
+            echo "Patch terdeteksi, melakukan commit dan push..."
+            git commit -m "Auto: Commit patch/diff changes via CI"
             git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:${{ env.KERNEL_SOURCE_BRANCH }}
           else
-            echo "Tidak ada perubahan yang perlu di-commit atau push."
+            echo "Tidak ada patch atau diff baru untuk di-commit."
           fi
           
       - name: Build kernel (Full Clang)
