@@ -48,16 +48,27 @@ jobs:
       - name: Commit & Push modified kernel source
         run: |
           cd kernel-source
+
+          echo "Menyiapkan Git user config"
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          if [ -n "$(git status --porcelain)" ]; then
-            git add .
+
+          echo "Mengabaikan folder KernelSU-Next dari commit"
+          echo "KernelSU-Next/" >> .gitignore
+
+          echo "Menambahkan perubahan ke Git"
+          git add .
+          git reset KernelSU-Next/
+
+          echo "Memeriksa perubahan yang akan di-commit..."
+            if [ -n "$(git status --porcelain)" ]; then
+            echo "Perubahan terdeteksi, melakukan commit dan push..."
             git commit -m "Auto: Apply patch and KernelSU changes via CI"
             git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:${{ env.KERNEL_SOURCE_BRANCH }}
           else
-            echo "No changes to commit and push."
+            echo "Tidak ada perubahan yang perlu di-commit atau push."
           fi
-
+          
       - name: Build kernel (Full Clang)
         run: |
           export KBUILD_BUILD_USER="Fraschze97"
