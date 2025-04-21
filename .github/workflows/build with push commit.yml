@@ -43,6 +43,7 @@ jobs:
         run: |
           cd kernel-source
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
+          rm -rf KernelSU-Next/.git
           cd ..
 
       - name: Commit & Push modified kernel source
@@ -56,7 +57,8 @@ jobs:
           if [ -n "$(git status --porcelain)" ]; then
             git add .
             git commit -m "Auto: Apply KernelSU-Next & SUSFS patches via CI"
-            git push https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:${{ env.KERNEL_SOURCE_BRANCH }}
+            git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+            git push origin HEAD:${{ env.KERNEL_SOURCE_BRANCH }}
           else
             echo "No changes to commit and push."
           fi
