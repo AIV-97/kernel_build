@@ -35,8 +35,6 @@ jobs:
         run: |
           cd kernel-source
           git apply --allow-empty $GITHUB_WORKSPACE/fastchg_patch.diff
-          git apply --allow-empty $GITHUB_WORKSPACE/fc.diff
-          git apply --allow-empty $GITHUB_WORKSPACE/voter.diff
           cd ..         
 
       - name: KernelSU-Next SUSFS
