@@ -19,7 +19,7 @@ jobs:
           echo "KERNEL_CONFIG=$(grep -w 'KERNEL_CONFIG' config.env | cut -d '=' -f2)" >> $GITHUB_ENV
           echo "BUILD_ARGS=$(grep -w 'BUILD_ARGS' config.env | cut -d ':' -f2)" >> $GITHUB_ENV
           sudo apt-get update
-          sudo apt-get install -y libc6-dev libc6 glibc-source bc ccache flex bison \
+          sudo apt-get install -y build-essential libc6-dev libc6 glibc-source bc ccache flex bison \
             libssl-dev make clang lld libelf-dev git unzip curl zip libncurses-dev
           sudo ln -s /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5 || true
 
