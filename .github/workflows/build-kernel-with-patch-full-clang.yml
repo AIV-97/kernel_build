@@ -19,7 +19,7 @@ jobs:
           echo "BUILD_ARGS=$(cat config.env | grep -w "BUILD_ARGS" | head -n 1 | cut -d ":" -f 2)" >> $GITHUB_ENV
           sudo apt-get update
           sudo apt-get install libc6-dev libc6 glibc-source -y
-          sudo apt-get install -y bc ccache flex bison libssl-dev \
+          sudo apt-get install -y bc ccache flex bison libssl-dev make -y \
             make clang lld libelf-dev git unzip curl zip libncurses-dev
           sudo ln -s /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5 || true
 
