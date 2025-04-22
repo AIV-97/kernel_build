@@ -41,6 +41,23 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
           cd ..
 
+      - name: Build DTB and DTBO
+        run: |
+          export PATH=$GITHUB_WORKSPACE/clang/bin:${PATH}
+          args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1"
+          cd kernel-source
+          echo "Building DTB..."
+          make ${args} dtbs
+          echo "Building DTBO (optional)..."
+          make ${args} dtbo.img || true
+          
+          if [ ! -f out/arch/arm64/boot/dtbo.img ] && ! ls out/arch/arm64/boot/*.dtb 1> /dev/null 2>&1; then
+            echo "Error: DTB or DTBO not found! Canceling build."
+            exit 1
+          else
+            echo "DTB or DTBO found, proceeding with build."
+          fi
+
       - name: Build kernel (Full Clang)
         run: |
           export KBUILD_BUILD_USER="Fraschze97"
@@ -48,21 +65,7 @@ jobs:
           args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1"
           cd kernel-source
           clang -v
-
-          echo "Running make defconfig..."
           make ${args} ${{ env.KERNEL_CONFIG }}
-
-          echo "Building DTB/DTBO..."
-          make ${args} dtbs
-          make ${args} dtbo.img || true
-
-          echo "Checking DTB/DTBO existence..."
-          if [ ! -f ../out/arch/arm64/boot/dtbo.img ] && ! ls ../out/arch/arm64/boot/*.dtb 1> /dev/null 2>&1; then
-            echo "Error: DTB or DTBO not found! Canceling build."
-            exit 1
-          fi
-
-          echo "Building full kernel..."
           make -j$(nproc --all) ${args} LD=ld.lld
 
       - name: Package kernel
