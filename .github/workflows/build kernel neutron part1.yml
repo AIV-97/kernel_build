@@ -38,7 +38,7 @@ jobs:
         run: |
           export PATH=$GITHUB_WORKSPACE/clang/neutron-clang/bin:$PATH
           export KCFLAGS="-flto -fuse-ld=lld -fno-limit-debug-info \
-          -fprofile-generate -Wno-maybe-uninitialized"
+          -fprofile-generate"
 
           args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1"
           cd kernel-source
