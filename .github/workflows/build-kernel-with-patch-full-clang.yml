@@ -54,7 +54,7 @@ jobs:
           cd kernel-source
           echo "Building kernel with PGO profile generation..."
           make ${args} ${{ env.KERNEL_CONFIG }}
-    
+
           echo "Building DTB..."
           if make ${args} dtbs; then
             echo "DTB build succeeded, proceeding..."
@@ -65,7 +65,7 @@ jobs:
 
       - name: Build kernel with PGO profile use
         run: |
-            export PATH=$GITHUB_WORKSPACE/clang/neutron-clang/bin:${PATH}
+          export PATH=$GITHUB_WORKSPACE/clang/neutron-clang/bin:${PATH}
           args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1 -O3 -flto -fuse-ld=lld -fno-limit-debug-info -fsanitize=undefined -fno-sanitize-recover=all -floop-block -fprofile-use"
           cd kernel-source
           echo "Building kernel with PGO profile use..."
@@ -74,10 +74,10 @@ jobs:
       - name: Build the final kernel
         run: |
           export PATH=$GITHUB_WORKSPACE/clang/neutron-clang/bin:${PATH}
-    args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1 -O3 -flto -fuse-ld=lld -fno-limit-debug-info -fsanitize=undefined -fno-sanitize-recover=all -floop-block"
-       cd kernel-source
-       echo "Building the final kernel..."
-       make -j$(nproc --all) ${args} LD=ld.lld
+          args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1 -O3 -flto -fuse-ld=lld -fno-limit-debug-info -fsanitize=undefined -fno-sanitize-recover=all -floop-block"
+          cd kernel-source
+          echo "Building the final kernel..."
+          make -j$(nproc --all) ${args} LD=ld.lld
           
       - name: Package kernel
         run: |
