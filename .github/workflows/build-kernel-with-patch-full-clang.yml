@@ -45,6 +45,7 @@ jobs:
         run: |
           export KBUILD_BUILD_USER="Fraschze97"
           export PATH=$GITHUB_WORKSPACE/clang/bin:${PATH}
+          args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1"
           cd kernel-source
           clang -v
           make ${args} ${{ env.KERNEL_CONFIG }}
@@ -59,6 +60,7 @@ jobs:
       - name: Build kernel (Full Clang)
         run: |
           export PATH=$GITHUB_WORKSPACE/clang/bin:${PATH}
+          args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1"
           cd kernel-source
           make ${args} ${{ env.KERNEL_CONFIG }}
           make -j$(nproc --all) ${args} LD=ld.lld
