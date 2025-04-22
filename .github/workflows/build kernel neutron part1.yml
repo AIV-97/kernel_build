@@ -42,11 +42,10 @@ jobs:
 
           cd kernel-source
 
-          make ARCH=arm64 \
-               O=../out \
-               ${{ env.BUILD_ARGS }} \
-               LLVM=1 LLVM_IAS=1 \
-               ${{ env.KERNEL_CONFIG }} LD=ld.lld
+          args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1"
+          cd kernel-source
+          make ${args} ${{ env.KERNEL_CONFIG }}
+          make -j$(nproc --all) ${args} LD=ld.lld
 
       - name: Package kernel
         run: |
