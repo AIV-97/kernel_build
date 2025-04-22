@@ -40,8 +40,6 @@ jobs:
           export KCFLAGS="-flto -fuse-ld=lld -fno-limit-debug-info \
           -fprofile-generate -Wno-maybe-uninitialized"
 
-          cd kernel-source
-
           args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1"
           cd kernel-source
           make ${args} ${{ env.KERNEL_CONFIG }}
