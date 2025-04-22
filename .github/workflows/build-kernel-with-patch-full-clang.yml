@@ -20,10 +20,13 @@ jobs:
           sudo apt-get update
           sudo apt install python2 libncurses5 libselinux-dev -y
 
-      - name: Pull toolchain (Full Clang)
+      - name: Pull toolchain (Neutron Clang)
         run: |
-          mkdir -p clang
-          curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250421-release/Clang-21.0.0git-20250421.tar.gz | tar -xzv -C clang
+          mkdir -p clang && cd clang
+          curl -LO https://raw.githubusercontent.com/Neutron-Toolchains/antman/main/antman
+          chmod +x antman
+          ./antman -S
+          cd ..
 
       - name: Pull kernel source
         run: |
@@ -40,29 +43,27 @@ jobs:
           cd kernel-source
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
           cd ..
-
-      - name: Checking build DTB
+          
+      - name: Build kernel (Neutron Clang with Optimizations)
         run: |
-          export KBUILD_BUILD_USER="Fraschze97"
-          export PATH=$GITHUB_WORKSPACE/clang/bin:${PATH}
-          args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1"
+          export PATH=$GITHUB_WORKSPACE/clang/neutron-clang/bin:${PATH}
+          args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1 -O3 -flto -fuse-ld=lld -fno-limit-debug-info -fsanitize=undefined -fno-sanitize-recover=all -floop-block -fprofile-generate"
           cd kernel-source
-          clang -v
+          echo "Building kernel with PGO profile generation..."
           make ${args} ${{ env.KERNEL_CONFIG }}
+          
           echo "Building DTB..."
           if make ${args} dtbs; then
             echo "DTB build succeeded, proceeding..."
           else
             echo "Error: Failed to build DTB! Canceling build."
-            exit 1
+          exit 1
           fi
 
-      - name: Build kernel (Full Clang)
-        run: |
-          export PATH=$GITHUB_WORKSPACE/clang/bin:${PATH}
-          args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1"
-          cd kernel-source
-          make ${args} ${{ env.KERNEL_CONFIG }}
+          echo "Building kernel with PGO profile use..."
+          make ${args} ${{ env.KERNEL_CONFIG }} -fprofile-use
+
+          echo "Building the kernel..."
           make -j$(nproc --all) ${args} LD=ld.lld
           
       - name: Package kernel
