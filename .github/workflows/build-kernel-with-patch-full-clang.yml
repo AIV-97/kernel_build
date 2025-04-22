@@ -48,7 +48,21 @@ jobs:
           args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1"
           cd kernel-source
           clang -v
+
+          echo "Running make defconfig..."
           make ${args} ${{ env.KERNEL_CONFIG }}
+
+          echo "Building DTB/DTBO..."
+          make ${args} dtbs
+          make ${args} dtbo.img || true
+
+          echo "Checking DTB/DTBO existence..."
+          if [ ! -f ../out/arch/arm64/boot/dtbo.img ] && ! ls ../out/arch/arm64/boot/*.dtb 1> /dev/null 2>&1; then
+            echo "Error: DTB or DTBO not found! Canceling build."
+            exit 1
+          fi
+
+          echo "Building full kernel..."
           make -j$(nproc --all) ${args} LD=ld.lld
 
       - name: Package kernel
@@ -75,8 +89,8 @@ jobs:
         run: |
           DATE=$(date +%d%m%y)
           RAND=$(shuf -i 1000-9999 -n 1)
-          KERNEL_NAME=$(basename ${{ env.KERNEL_SOURCE }})
-          NEW_NAME="Cassia-${KERNEL_NAME}-${DATE}-${RAND}.zip"
+          KERNEL_NAME=$(basename ${{ env.KERNEL_SOURCE }} | sed 's/kernel_//g')
+          NEW_NAME="Cassia-${KERNEL_NAME}-perf-${DATE}-${RAND}-KSU-SUSFS-FC.zip"
           mv DreamsKernel.zip "$NEW_NAME"
           echo "NEW_ZIP_NAME=$NEW_NAME" >> $GITHUB_ENV
 
