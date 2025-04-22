@@ -47,27 +47,37 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
           cd ..
           
-      - name: Build kernel (Neutron Clang with Optimizations)
+      - name: Build kernel with PGO profile generation
         run: |
           export PATH=$GITHUB_WORKSPACE/clang/neutron-clang/bin:${PATH}
           args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1 -O3 -flto -fuse-ld=lld -fno-limit-debug-info -fsanitize=undefined -fno-sanitize-recover=all -floop-block -fprofile-generate"
           cd kernel-source
           echo "Building kernel with PGO profile generation..."
           make ${args} ${{ env.KERNEL_CONFIG }}
-          
+    
           echo "Building DTB..."
           if make ${args} dtbs; then
             echo "DTB build succeeded, proceeding..."
           else
             echo "Error: Failed to build DTB! Canceling build."
-          exit 1
+            exit 1
           fi
 
+      - name: Build kernel with PGO profile use
+        run: |
+            export PATH=$GITHUB_WORKSPACE/clang/neutron-clang/bin:${PATH}
+          args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1 -O3 -flto -fuse-ld=lld -fno-limit-debug-info -fsanitize=undefined -fno-sanitize-recover=all -floop-block -fprofile-use"
+          cd kernel-source
           echo "Building kernel with PGO profile use..."
-          make ${args} ${{ env.KERNEL_CONFIG }} -fprofile-use
+          make ${args} ${{ env.KERNEL_CONFIG }}
 
-          echo "Building the kernel..."
-          make -j$(nproc --all) ${args} LD=ld.lld
+      - name: Build the final kernel
+        run: |
+          export PATH=$GITHUB_WORKSPACE/clang/neutron-clang/bin:${PATH}
+    args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1 -O3 -flto -fuse-ld=lld -fno-limit-debug-info -fsanitize=undefined -fno-sanitize-recover=all -floop-block"
+       cd kernel-source
+       echo "Building the final kernel..."
+       make -j$(nproc --all) ${args} LD=ld.lld
           
       - name: Package kernel
         run: |
