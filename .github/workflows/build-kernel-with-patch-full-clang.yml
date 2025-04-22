@@ -41,7 +41,7 @@ jobs:
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
           cd ..
 
-      - name: Build DTB and DTBO
+      - name: Checking build DTB
         run: |
           export KBUILD_BUILD_USER="Fraschze97"
           export PATH=$GITHUB_WORKSPACE/clang/bin:${PATH}
@@ -50,15 +50,11 @@ jobs:
           clang -v
           make ${args} ${{ env.KERNEL_CONFIG }}
           echo "Building DTB..."
-          make ${args} dtbs
-          echo "Building DTBO (optional)..."
-          make ${args} dtbo.img || true
-          
-          if [ ! -f out/arch/arm64/boot/dtbo.img ] && ! ls out/arch/arm64/boot/*.dtb 1> /dev/null 2>&1; then
-            echo "Error: DTB or DTBO not found! Canceling build."
-            exit 1
+          if make ${args} dtbs; then
+            echo "DTB build succeeded, proceeding..."
           else
-            echo "DTB or DTBO found, proceeding with build."
+            echo "Error: Failed to build DTB! Canceling build."
+            exit 1
           fi
 
       - name: Build kernel (Full Clang)
