@@ -52,17 +52,9 @@ jobs:
           export PATH=$GITHUB_WORKSPACE/clang/neutron-clang/bin:$PATH
 
           export KCFLAGS="-flto -fuse-ld=lld -fno-limit-debug-info \
-            -fsanitize=undefined -fno-sanitize-recover=all \
-            -fprofile-generate"
+          -fprofile-use=out.profdata -Wno-maybe-uninitialized"
 
           cd kernel-source
-
-          echo ">> Building kernel with PGO profile generation..."
-          make ARCH=arm64 \
-               O=../out \
-               ${{ env.BUILD_ARGS }} \
-               LLVM=1 LLVM_IAS=1 \
-               ${{ env.KERNEL_CONFIG }}
 
           echo ">> Building DTB..."
           if make ARCH=arm64 \
@@ -78,14 +70,7 @@ jobs:
 
           echo ">> Building kernel with PGO profile use..."
           export KCFLAGS="-flto -fuse-ld=lld -fno-limit-debug-info \
-            -fsanitize=undefined -fno-sanitize-recover=all \
-            -fprofile-use"
-
-          make ARCH=arm64 \
-               O=../out \
-               ${{ env.BUILD_ARGS }} \
-               LLVM=1 LLVM_IAS=1 \
-               ${{ env.KERNEL_CONFIG }}
+          -fprofile-use=out.profdata -Wno-maybe-uninitialized"
 
           echo ">> Final kernel build..."
           make -j$(nproc --all) \
@@ -93,7 +78,7 @@ jobs:
                O=../out \
                ${{ env.BUILD_ARGS }} \
                LLVM=1 LLVM_IAS=1 \
-               LD=ld.lld
+               ${{ env.KERNEL_CONFIG }} LD=ld.lld
 
       - name: Package kernel
         run: |
