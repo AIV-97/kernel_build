@@ -5,7 +5,7 @@ on:
 
 jobs:
   build-kernel:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Setup environment
@@ -17,23 +17,18 @@ jobs:
           echo "KERNEL_CONFIG=$(cat config.env | grep -w "KERNEL_CONFIG" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
           echo "BUILD_ARGS=$(cat config.env | grep -w "BUILD_ARGS" | head -n 1 | cut -d ":" -f 2)" >> $GITHUB_ENV
           sudo apt-get update
-          sudo apt-get install libc6-dev libc6 glibc-source -y
-          sudo apt-get install -y bc ccache flex bison libssl-dev \
-            make clang lld libelf-dev git unzip curl zip libncurses-dev
-          sudo ln -s /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5 || true
-
+          sudo apt install python2 libncurses5
+          sudo apt-get install libselinux-dev
       - name: Pull toolchain
         run: |
-          mkdir -p clang
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 aarch64-linux-android-4.9
           git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 arm-linux-androideabi-4.9
-          curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250420-release/Clang-21.0.0git-20250420.tar.gz | tar -xzv -C clang
-          cd ..
-
+          git clone https://github.com/xiangfeidexiaohuo/Snapdragon-LLVM.git clang
+          
       - name: Pull kernel source
         run: |
           git clone --depth=1 ${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
-
+          
       - name: KernelSU-Next
         run: |
           cd kernel-source
@@ -42,7 +37,7 @@ jobs:
 
       - name: Build kernel
         run: |
-          export KBUILD_BUILD_USER="Fraschze97"
+          export KBUILD_BUILD_USER="Reborn"
           export PATH=$GITHUB_WORKSPACE/clang/bin:${PATH}
           args="                  ARCH=arm64 \
                                   O=../out \
@@ -53,7 +48,7 @@ jobs:
           cd kernel-source
           clang -v
           make ${args} ${{ env.KERNEL_CONFIG }}
-          make -j$(nproc --all) ${args} LD=ld.lld
+          make -j$(nproc --all) ${args} 
 
       - name: Package kernel
         run: |
