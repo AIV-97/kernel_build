@@ -35,11 +35,10 @@ jobs:
         run: |
           cd kernel-source
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
-          cd ..
 
       - name: Build kernel
         run: |
-          export KBUILD_BUILD_USER="hiahia"
+          export KBUILD_BUILD_USER="Reborn"
           export PATH=$GITHUB_WORKSPACE/clang/bin:${PATH}
           args="                  ARCH=arm64 \
                                   O=../out \
