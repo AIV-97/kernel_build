@@ -86,13 +86,53 @@ jobs:
         with:
           name: ${{ env.NEW_ZIP_NAME }}
           path: ${{ env.NEW_ZIP_NAME }}
+          
+      - name: Extract build info
+        id: extract
+        run: |
+          echo "BRANCH=${{ env.KERNEL_SOURCE_BRANCH }}" >> $GITHUB_ENV
+          echo "DATE=$(date +%d%m%y)" >> $GITHUB_ENV
+          echo "KERNEL_NAME=$(basename ${{ env.KERNEL_SOURCE }} | sed 's/kernel_//g')" >> $GITHUB_ENV
+          
+          LINUX_VER=$(cat kernel-source/include/generated/utsrelease.h | cut -d '"' -f2)
+          echo "LINUX_VER=$LINUX_VER" >> $GITHUB_ENV
 
+          LATEST_COMMIT=$(cd kernel-source && git log -1 --pretty=format:'%s (%an)')
+          echo "LATEST_COMMIT=$LATEST_COMMIT" >> $GITHUB_ENV
+
+          KSU_COMMIT=$(cd kernel-source/KernelSU && git log -1 --pretty=format:'%s (%an)')
+          echo "KSU_COMMIT=$KSU_COMMIT" >> $GITHUB_ENV
+
+          CLANG_VERSION=$(clang/bin/clang --version | head -n1)
+          echo "CLANG_VERSION=$CLANG_VERSION" >> $GITHUB_ENV
+          
       - name: Upload to Telegram
         env:
           BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          BRANCH: ${{ env.BRANCH }}
+          LINUX_VER: ${{ env.LINUX_VER }}
+          LATEST_COMMIT: ${{ env.LATEST_COMMIT }}
+          KSU_COMMIT: ${{ env.KSU_COMMIT }}
+          CLANG_VERSION: ${{ env.CLANG_VERSION }}
+          NEW_ZIP_NAME: ${{ env.NEW_ZIP_NAME }}
+          DATE: ${{ env.DATE }}
+          KERNEL_NAME: ${{ env.KERNEL_NAME }}
         run: |
-          curl -F document=@"${{ env.NEW_ZIP_NAME }}" \
+          TEXT="📍 <b>Branch:</b> $BRANCH
+          🐧 <b>Linux version:</b> $LINUX_VER
+          ♻️ <b>Latest commit:</b> $LATEST_COMMIT
+          📛 <b>KSU commit:</b> $KSU_COMMIT
+          🔰 <b>Compiler:</b> $CLANG_VERSION
+          ⬇️ <b>Link:</b> <a href=\"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\">Download</a>
+          🏷️ #$DATE #${KERNEL_NAME}KSU #stable"
+
+          curl -s -X POST https://api.telegram.org/bot$BOT_TOKEN/sendMessage \
+            -d chat_id=$CHAT_ID \
+            -d text="$TEXT" \
+            -d parse_mode="HTML"
+
+          curl -F document=@"$NEW_ZIP_NAME" \
                -F chat_id=$CHAT_ID \
-               -F caption="Cassia Kernel build: ${{ env.NEW_ZIP_NAME }}" \
+               -F caption="$NEW_ZIP_NAME" \
                https://api.telegram.org/bot$BOT_TOKEN/sendDocument
