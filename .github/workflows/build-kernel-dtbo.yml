@@ -1,0 +1,113 @@
+name: Build with dtbo
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-kernel:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup environment
+      run: |
+        echo "ANYKERNEL_SOURCE=$(grep -w 'ANYKERNEL_SOURCE' config.env | cut -d '=' -f 2)" >> $GITHUB_ENV
+        echo "ANYKERNEL_SOURCE_BRANCH=$(grep -w 'ANYKERNEL_SOURCE_BRANCH' config.env | cut -d '=' -f 2)" >> $GITHUB_ENV
+        echo "KERNEL_SOURCE=$(grep -w 'KERNEL_SOURCE' config.env | cut -d '=' -f 2)" >> $GITHUB_ENV
+        echo "KERNEL_SOURCE_BRANCH=$(grep -w 'KERNEL_SOURCE_BRANCH' config.env | cut -d '=' -f 2)" >> $GITHUB_ENV
+        echo "KERNEL_CONFIG=$(grep -w 'KERNEL_CONFIG' config.env | cut -d '=' -f 2)" >> $GITHUB_ENV
+        echo "BUILD_ARGS=$(grep -w 'BUILD_ARGS' config.env | cut -d ':' -f 2)" >> $GITHUB_ENV
+        sudo apt-get update
+        sudo apt install python2 libncurses5 libselinux-dev -y
+
+    - name: Pull toolchain (Full Clang)
+      run: |
+        mkdir -p clang
+        curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250425-release/Clang-21.0.0git-20250425.tar.gz | tar -xzv -C clang
+
+    - name: Pull kernel source
+      run: |
+        git clone --depth=1 ${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
+
+    - name: KernelSU-Next SUSFS
+      run: |
+        cd kernel-source
+        curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
+        cd ..
+
+    - name: Build kernel, DTB & DTBO (via Makefile)
+      run: |
+        export KBUILD_BUILD_USER="Fraschze97"
+        export PATH=$GITHUB_WORKSPACE/clang/bin:${PATH}
+        args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1"
+        cd kernel-source
+        make ${args} ${{ env.KERNEL_CONFIG }}
+        make ${args} -j$(nproc --all) LD=ld.lld
+        make ${args} -C arch/arm64/boot/dts/vendor/qcom all
+        make ${args} flashable
+        cd ..
+
+    - name: Clone AnyKernel3 & Package kernel
+      run: |
+        git clone --depth=1 ${{ env.ANYKERNEL_SOURCE }} -b ${{ env.ANYKERNEL_SOURCE_BRANCH }} AnyKernel3
+        rm -rf AnyKernel3/.git AnyKernel3/.github AnyKernel3/LICENSE AnyKernel3/README.md
+        cp -v anykernel/* AnyKernel3/
+        cd AnyKernel3
+        zip -r9 ../DreamsKernel.zip * -x "*.git*" -x "*.md"
+        cd ..
+
+    - name: Rename zip with date and random number
+      run: |
+        DATE=$(date +%d%m%y)
+        RAND=$(shuf -i 1000-9999 -n 1)
+        KERNEL_NAME=$(basename ${{ env.KERNEL_SOURCE }} | sed 's/kernel_//g')
+        NEW_NAME="Cassia-${KERNEL_NAME}-perf-${DATE}-${RAND}-KSU-SUSFS-FC.zip"
+        mv DreamsKernel.zip "$NEW_NAME"
+        echo "NEW_ZIP_NAME=$NEW_NAME" >> $GITHUB_ENV
+
+    - name: Upload kernel to artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.NEW_ZIP_NAME }}
+        path: ${{ env.NEW_ZIP_NAME }}
+
+    - name: Extract build info
+      id: extract
+      run: |
+        echo "BRANCH=${{ env.KERNEL_SOURCE_BRANCH }}" >> $GITHUB_ENV
+        echo "DATE=$(date +%d%m%y)" >> $GITHUB_ENV
+        echo "KERNEL_NAME=$(basename ${{ env.KERNEL_SOURCE }} | sed 's/kernel_//g')" >> $GITHUB_ENV
+        LINUX_VER=$(cat kernel-source/include/generated/utsrelease.h | cut -d '"' -f2)
+        echo "LINUX_VER=$LINUX_VER" >> $GITHUB_ENV
+        LATEST_COMMIT=$(cd kernel-source && git log -1 --pretty=format:'%s (%an)')
+        echo "LATEST_COMMIT=$LATEST_COMMIT" >> $GITHUB_ENV
+        CLANG_VERSION=$(clang/bin/clang --version | head -n1)
+        echo "CLANG_VERSION=$CLANG_VERSION" >> $GITHUB_ENV
+
+    - name: Upload to Telegram
+      env:
+        BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+        CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+        BRANCH: ${{ env.BRANCH }}
+        LINUX_VER: ${{ env.LINUX_VER }}
+        LATEST_COMMIT: ${{ env.LATEST_COMMIT }}
+        CLANG_VERSION: ${{ env.CLANG_VERSION }}
+        NEW_ZIP_NAME: ${{ env.NEW_ZIP_NAME }}
+        DATE: ${{ env.DATE }}
+        KERNEL_NAME: ${{ env.KERNEL_NAME }}
+      run: |
+        TEXT="📍 <b>Branch:</b> $BRANCH
+        🐧 <b>Linux version:</b> $LINUX_VER
+        ♻️ <b>Latest commit:</b> $LATEST_COMMIT
+        🔰 <b>Compiler:</b> $CLANG_VERSION
+        ⬇️ <b>Link:</b> <a href=\"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\">Download</a>
+        🏷️ #$DATE #${KERNEL_NAME}KSU #stable"
+        curl -s -X POST https://api.telegram.org/bot$BOT_TOKEN/sendMessage \
+          -d chat_id=$CHAT_ID \
+          -d text="$TEXT" \
+          -d parse_mode="HTML"
+        curl -F document=@"$NEW_ZIP_NAME" \
+          -F chat_id=$CHAT_ID \
+          -F caption="$NEW_ZIP_NAME" \
+          https://api.telegram.org/bot$BOT_TOKEN/sendDocument
