@@ -1,4 +1,4 @@
-name: Build kernel Llvm
+name: Build kernel
 
 on:
   workflow_dispatch:
@@ -17,31 +17,18 @@ jobs:
           echo "KERNEL_SOURCE_BRANCH=$(cat config.env | grep -w "KERNEL_SOURCE_BRANCH" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
           echo "KERNEL_CONFIG=$(cat config.env | grep -w "KERNEL_CONFIG" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
           echo "BUILD_ARGS=$(cat config.env | grep -w "BUILD_ARGS" | head -n 1 | cut -d ":" -f 2)" >> $GITHUB_ENV
-          
           sudo apt-get update
-          sudo apt-get install -y python2 libncurses5 libselinux-dev build-essential libssl-dev bc flex bison
-
-      - name: Pull toolchain
-        run: |
-          git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 aarch64-linux-android-4.9
-          git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 arm-linux-androideabi-4.9
-          git clone https://github.com/xiangfeidexiaohuo/Snapdragon-LLVM.git clang
+          sudo apt install python2 libncurses5 libselinux-dev -y
 
       - name: Pull kernel source
         run: |
           git clone --depth=1 ${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
-
-      - name: KernelSU-Next SUSFS
-        run: |
-          cd kernel-source
-          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
-          cd ..
-
+          
       - name: Checking build DTB
         run: |
           export KBUILD_BUILD_USER="Fraschze97"
-          export PATH=$GITHUB_WORKSPACE/clang/bin:$GITHUB_WORKSPACE/aarch64-linux-android-4.9/bin:$GITHUB_WORKSPACE/arm-linux-androideabi-4.9/bin:$PATH
-          args="ARCH=arm64 O=../out CROSS_COMPILE=aarch64-linux-android- CROSS_COMPILE_ARM32=arm-linux-androideabi- HOSTCC=gcc HOSTCXX=g++ LLVM=1 LLVM_IAS=1"
+          export PATH=$GITHUB_WORKSPACE/clang/bin:${PATH}
+          args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1"
           cd kernel-source
           clang -v
           make ${args} ${{ env.KERNEL_CONFIG }}
@@ -52,14 +39,14 @@ jobs:
             echo "Error: Failed to build DTB! Canceling build."
             exit 1
           fi
-
+          
       - name: Build kernel (Full Clang)
         run: |
-          export PATH=$GITHUB_WORKSPACE/clang/bin:$GITHUB_WORKSPACE/aarch64-linux-android-4.9/bin:$GITHUB_WORKSPACE/arm-linux-androideabi-4.9/bin:$PATH
-          args="ARCH=arm64 O=../out CROSS_COMPILE=aarch64-linux-android- CROSS_COMPILE_ARM32=arm-linux-androideabi- HOSTCC=gcc HOSTCXX=g++ LLVM=1 LLVM_IAS=1"
+          export PATH=$GITHUB_WORKSPACE/clang/bin:${PATH}
+          args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1"
           cd kernel-source
           make ${args} ${{ env.KERNEL_CONFIG }}
-          make -j$(nproc --all) ${args}
+          make -j$(nproc --all) ${args} LD=ld.lld
           
       - name: Package kernel
         run: |
@@ -80,7 +67,7 @@ jobs:
           cd AnyKernel3
           zip -r9 ../DreamsKernel.zip * -x "*.git*" -x "*.md"
           cd ..
-
+          
       - name: Rename zip with date and random number
         run: |
           DATE=$(date +%d%m%y)
@@ -89,19 +76,59 @@ jobs:
           NEW_NAME="Cassia-${KERNEL_NAME}-perf-${DATE}-${RAND}-KSU-SUSFS-FC.zip"
           mv DreamsKernel.zip "$NEW_NAME"
           echo "NEW_ZIP_NAME=$NEW_NAME" >> $GITHUB_ENV
-
+          
       - name: Upload kernel to artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.NEW_ZIP_NAME }}
           path: ${{ env.NEW_ZIP_NAME }}
+          
+      - name: Extract build info
+        id: extract
+        run: |
+          echo "BRANCH=${{ env.KERNEL_SOURCE_BRANCH }}" >> $GITHUB_ENV
+          echo "DATE=$(date +%d%m%y)" >> $GITHUB_ENV
+          echo "KERNEL_NAME=$(basename ${{ env.KERNEL_SOURCE }} | sed 's/kernel_//g')" >> $GITHUB_ENV
+          
+          LINUX_VER=$(cat kernel-source/include/generated/utsrelease.h | cut -d '"' -f2)
+          echo "LINUX_VER=$LINUX_VER" >> $GITHUB_ENV
 
+          LATEST_COMMIT=$(cd kernel-source && git log -1 --pretty=format:'%s (%an)')
+          echo "LATEST_COMMIT=$LATEST_COMMIT" >> $GITHUB_ENV
+
+          KSU_COMMIT=$(cd kernel-source/KernelSU && git log -1 --pretty=format:'%s (%an)')
+          echo "KSU_COMMIT=$KSU_COMMIT" >> $GITHUB_ENV
+
+          CLANG_VERSION=$(clang/bin/clang --version | head -n1)
+          echo "CLANG_VERSION=$CLANG_VERSION" >> $GITHUB_ENV
+          
       - name: Upload to Telegram
         env:
           BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          BRANCH: ${{ env.BRANCH }}
+          LINUX_VER: ${{ env.LINUX_VER }}
+          LATEST_COMMIT: ${{ env.LATEST_COMMIT }}
+          KSU_COMMIT: ${{ env.KSU_COMMIT }}
+          CLANG_VERSION: ${{ env.CLANG_VERSION }}
+          NEW_ZIP_NAME: ${{ env.NEW_ZIP_NAME }}
+          DATE: ${{ env.DATE }}
+          KERNEL_NAME: ${{ env.KERNEL_NAME }}
         run: |
-          curl -F document=@"${{ env.NEW_ZIP_NAME }}" \
+          TEXT="📍 <b>Branch:</b> $BRANCH
+          🐧 <b>Linux version:</b> $LINUX_VER
+          ♻️ <b>Latest commit:</b> $LATEST_COMMIT
+          📛 <b>KSU commit:</b> $KSU_COMMIT
+          🔰 <b>Compiler:</b> $CLANG_VERSION
+          ⬇️ <b>Link:</b> <a href=\"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\">Download</a>
+          🏷️ #$DATE #${KERNEL_NAME}KSU #stable"
+
+          curl -s -X POST https://api.telegram.org/bot$BOT_TOKEN/sendMessage \
+            -d chat_id=$CHAT_ID \
+            -d text="$TEXT" \
+            -d parse_mode="HTML"
+
+          curl -F document=@"$NEW_ZIP_NAME" \
                -F chat_id=$CHAT_ID \
-               -F caption="Cassia Kernel build: ${{ env.NEW_ZIP_NAME }}" \
+               -F caption="$NEW_ZIP_NAME" \
                https://api.telegram.org/bot$BOT_TOKEN/sendDocument
