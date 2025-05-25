@@ -29,12 +29,6 @@ jobs:
         run: |
           git clone --depth=1 ${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
           
-      - name: KernelSU-Next SUSFS
-        run: |
-          cd kernel-source
-          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
-          cd ..
-          
       - name: Checking build DTB
         run: |
           export KBUILD_BUILD_USER="Fraschze97"
