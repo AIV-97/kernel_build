@@ -33,7 +33,6 @@ jobs:
         run: |
           cd kernel-source
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
-          patch -p1 < "$GITHUB_WORKSPACE/sucompat.patch"
           cd ..
           
       - name: Checking build DTB
