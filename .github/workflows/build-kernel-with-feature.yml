@@ -31,6 +31,9 @@ jobs:
           cd kernel-source
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
           cd ..
+
+          patch -p1 < sucompat.patch
+
       - name: Checking build DTB
         run: |
           export KBUILD_BUILD_USER="Fraschze97"
