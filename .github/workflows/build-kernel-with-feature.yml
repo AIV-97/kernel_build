@@ -32,7 +32,7 @@ jobs:
       - name: KernelSU-Next SUSFS
         run: |
           cd kernel-source
-          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs/kernel/setup.sh" | bash -s next-susfs
+          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -
           cd ..
           
       - name: Checking build DTB
