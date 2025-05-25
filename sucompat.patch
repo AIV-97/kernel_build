@@ -1,7 +1,6 @@
-diff --git a/drivers/kernelsu/ksud.h b/drivers/kernelsu/ksud.h
-index abcdefg..hijklmn 100644
---- a/drivers/kernelsu/ksud.h
-+++ b/drivers/kernelsu/ksud.h
+diff --git drivers/kernelsu/ksud.h drivers/kernelsu/ksud.h
+--- drivers/kernelsu/ksud.h
++++ drivers/kernelsu/ksud.h
 @@ -11,6 +11,7 @@
  #ifndef _KSU_KSUD_H
  #define _KSU_KSUD_H
@@ -10,10 +9,9 @@ index abcdefg..hijklmn 100644
 +extern bool ksu_devpts_hook;
 
  #endif
-diff --git a/drivers/kernelsu/ksud.c b/drivers/kernelsu/ksud.c
-index 1234567..89abcde 100644
---- a/drivers/kernelsu/ksud.c
-+++ b/drivers/kernelsu/ksud.c
+diff --git drivers/kernelsu/ksud.c drivers/kernelsu/ksud.c
+--- drivers/kernelsu/ksud.c
++++ drivers/kernelsu/ksud.c
 @@ -5,6 +5,8 @@
  #include <linux/slab.h>
  #include "ksud.h"
