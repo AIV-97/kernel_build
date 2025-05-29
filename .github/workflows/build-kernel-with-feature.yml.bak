@@ -72,6 +72,9 @@ jobs:
             mkdir -p kernel-source/scripts
             curl -s "https://android.googlesource.com/platform/system/libufdt/+/refs/heads/master/utils/src/mkdtboimg.py?format=TEXT" | base64 -d > mkdtboimg.py
 
+# Ubah permission
+chmod +x mkdtboimg.py
+
             chmod +x "$MKDTBO"
           fi
 

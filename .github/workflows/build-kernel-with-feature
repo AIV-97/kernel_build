@@ -11,23 +11,20 @@ jobs:
 
       - name: Setup environment
         run: |
-          # Membaca variabel dari config.env dengan delimiter '='
-          echo "ANYKERNEL_SOURCE=$(grep -w "ANYKERNEL_SOURCE" config.env | cut -d "=" -f 2-)" >> $GITHUB_ENV
-          echo "ANYKERNEL_SOURCE_BRANCH=$(grep -w "ANYKERNEL_SOURCE_BRANCH" config.env | cut -d "=" -f 2-)" >> $GITHUB_ENV
-          echo "KERNEL_SOURCE=$(grep -w "KERNEL_SOURCE" config.env | cut -d "=" -f 2-)" >> $GITHUB_ENV
-          echo "KERNEL_SOURCE_BRANCH=$(grep -w "KERNEL_SOURCE_BRANCH" config.env | cut -d "=" -f 2-)" >> $GITHUB_ENV
-          echo "KERNEL_CONFIG=$(grep -w "KERNEL_CONFIG" config.env | cut -d "=" -f 2-)" >> $GITHUB_ENV
-          echo "BUILD_ARGS=$(grep -w "BUILD_ARGS" config.env | cut -d "=" -f 2-)" >> $GITHUB_ENV
-
-          # Update & install dependencies
+          echo "ANYKERNEL_SOURCE=$(grep -w "ANYKERNEL_SOURCE" config.env | cut -d "=" -f 2)" >> $GITHUB_ENV
+          echo "ANYKERNEL_SOURCE_BRANCH=$(grep -w "ANYKERNEL_SOURCE_BRANCH" config.env | cut -d "=" -f 2)" >> $GITHUB_ENV
+          echo "KERNEL_SOURCE=$(grep -w "KERNEL_SOURCE" config.env | cut -d "=" -f 2)" >> $GITHUB_ENV
+          echo "KERNEL_SOURCE_BRANCH=$(grep -w "KERNEL_SOURCE_BRANCH" config.env | cut -d "=" -f 2)" >> $GITHUB_ENV
+          echo "KERNEL_CONFIG=$(grep -w "KERNEL_CONFIG" config.env | cut -d "=" -f 2)" >> $GITHUB_ENV
+          echo "BUILD_ARGS=$(grep -w "BUILD_ARGS" config.env | cut -d ":" -f 2)" >> $GITHUB_ENV
           sudo apt-get update
-          sudo apt-get install -y python2 libncurses5 libselinux-dev python3
-
+          sudo apt install python2 libncurses5 libselinux-dev python3 -y
+          
       - name: Pull toolchain (Full Clang)
         run: |
           mkdir -p clang
-          curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250529-release/Clang-21.0.0git-20250529.tar.gz | tar -xzv -C clang
-
+          curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250528-release/Clang-21.0.0git-20250528.tar.gz | tar -xzv -C clang
+          
       - name: Pull kernel source
         run: |
           git clone --depth=1 ${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
@@ -39,10 +36,7 @@ jobs:
           args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1"
           cd kernel-source
           clang -v
-
-          # Build kernel config
           make ${args} ${{ env.KERNEL_CONFIG }}
-
           echo "Building DTB..."
           if make ${args} dtbs; then
             echo "DTB build succeeded, proceeding..."
@@ -50,36 +44,25 @@ jobs:
             echo "Error: Failed to build DTB! Canceling build."
             exit 1
           fi
-
+          
       - name: Build kernel (Full Clang)
         run: |
           export PATH=$GITHUB_WORKSPACE/clang/bin:${PATH}
           args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1"
           cd kernel-source
-
-          # Build kernel with parallel jobs
           make ${args} ${{ env.KERNEL_CONFIG }}
           make -j$(nproc --all) ${args} LD=ld.lld
-
+          
       - name: Package kernel
         run: |
           git clone --depth=1 ${{ env.ANYKERNEL_SOURCE }} -b ${{ env.ANYKERNEL_SOURCE_BRANCH }} AnyKernel3
           rm -rf AnyKernel3/.git AnyKernel3/.github AnyKernel3/LICENSE AnyKernel3/README.md
-  
-          MKDTBO=kernel-source/scripts/mkdtboimg.py
-          if [ ! -f "$MKDTBO" ]; then
-            echo "mkdtboimg.py not found, downloading..."
-            mkdir -p kernel-source/scripts
-            curl -s "https://android.googlesource.com/platform/system/libufdt/+/refs/heads/master/utils/src/mkdtboimg.py?format=TEXT" | base64 -d > mkdtboimg.py
-
-            chmod +x "$MKDTBO"
-          fi
 
           echo "===== Daftar file hasil build di out/arch/arm64/boot ====="
-          find out/arch/arm64/boot -type f \( -name "*.img" -o -name "*.dtb" -o -name "Image*" \)
+          find out/arch/arm64/boot -type f -name "*.img" -o -name "*.dtb" -o -name "Image*"
           echo "=========================================================="
 
-          # Buat dtbo.img dari semua *.dtbo
+          # Buat dtbo.img dari file *.dtbo
           DTBO_LIST=$(find out/arch/arm64/boot/dts/ -type f -name "*.dtbo" | tr '\n' ' ')
           if [[ ! -z "$DTBO_LIST" ]]; then
             echo "Membuat dtbo.img dari dtbo list..."
@@ -87,15 +70,14 @@ jobs:
             cp dtbo.img AnyKernel3/dtbo.img
           fi
 
-          # Buat dtb.img dari semua *.dtb dengan mkdtbimg.py (lebih aman daripada cat)
+          # Buat dtb.img dari file *.dtb
           DTB_LIST=$(find out/arch/arm64/boot/dts/ -type f -name "*.dtb" | tr '\n' ' ')
           if [[ ! -z "$DTB_LIST" ]]; then
             echo "Membuat dtb.img dari dtb list..."
-            python3 kernel-source/scripts/mkdtbimg.py create dtb.img --dtb $DTB_LIST --page_size=4096
+            cat $DTB_LIST > dtb.img
             cp dtb.img AnyKernel3/dtb.img
           fi
 
-          # Copy Image kernel sesuai prioritas yang ada
           if [[ -f out/arch/arm64/boot/Image.gz-dtb ]]; then
             cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/Image.gz-dtb
           elif [[ -f out/arch/arm64/boot/Image-dtb ]]; then
@@ -109,7 +91,7 @@ jobs:
           DATE=$(date +%d%m%y)
           RAND=$(shuf -i 1000-9999 -n 1)
           KERNEL_NAME=$(basename ${{ env.KERNEL_SOURCE }} | sed 's/kernel_//g')
-          ZIP_NAME="Cassia-${KERNEL_NAME}-perf-${DATE}-${RAND}-KSU-SUSFS.zip"
+          ZIP_NAME="Cassia-${KERNEL_NAME}-perf-${DATE}-${RAND}-KSU-SUSFS-FC.zip"
 
           cd AnyKernel3
           zip -r9 "../$ZIP_NAME" * -x "*.git*" -x "*.md"
@@ -153,7 +135,6 @@ jobs:
           BRANCH: ${{ env.BRANCH }}
           LINUX_VER: ${{ env.LINUX_VER }}
           LATEST_COMMIT: ${{ env.LATEST_COMMIT }}
-          KSU_COMMIT: ${{ env.KSU_COMMIT }}
           CLANG_VERSION: ${{ env.CLANG_VERSION }}
           NEW_ZIP_NAME: ${{ env.NEW_ZIP_NAME }}
           DATE: ${{ env.DATE }}
@@ -162,16 +143,13 @@ jobs:
           TEXT="📍 <b>Branch:</b> $BRANCH
           🐧 <b>Linux version:</b> $LINUX_VER
           ♻️ <b>Latest commit:</b> $LATEST_COMMIT
-          📛 <b>KSU commit:</b> $KSU_COMMIT
           🔰 <b>Compiler:</b> $CLANG_VERSION
           ⬇️ <b>Link:</b> <a href=\"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\">Download</a>
           🏷️ #$DATE #${KERNEL_NAME}KSU #stable"
-
           curl -s -X POST https://api.telegram.org/bot$BOT_TOKEN/sendMessage \
             -d chat_id=$CHAT_ID \
             -d text="$TEXT" \
             -d parse_mode="HTML"
-
           curl -F document=@"$NEW_ZIP_NAME" \
                -F chat_id=$CHAT_ID \
                -F caption="$NEW_ZIP_NAME" \
