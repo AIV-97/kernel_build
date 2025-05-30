@@ -26,7 +26,7 @@ jobs:
       - name: Pull toolchain (Full Clang)
         run: |
           mkdir -p clang
-          curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250529-release/Clang-21.0.0git-20250529.tar.gz | tar -xzv -C clang
+          curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250530-release/Clang-21.0.0git-20250530.tar.gz | tar -xzv -C clang
 
       - name: Pull kernel source
         run: |
