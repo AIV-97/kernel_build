@@ -65,35 +65,28 @@ jobs:
         run: |
           git clone --depth=1 ${{ env.ANYKERNEL_SOURCE }} -b ${{ env.ANYKERNEL_SOURCE_BRANCH }} AnyKernel3
           rm -rf AnyKernel3/.git AnyKernel3/.github AnyKernel3/LICENSE AnyKernel3/README.md
-  
-          MKDTBO=kernel-source/scripts/mkdtboimg.py
-          if [ ! -f "$MKDTBO" ]; then
-            echo "mkdtboimg.py not found, downloading..."
-            mkdir -p kernel-source/scripts
-            curl -s "https://android.googlesource.com/platform/system/libufdt/+/refs/heads/master/utils/src/mkdtboimg.py?format=TEXT" | base64 -d > mkdtboimg.py
-
-            chmod +x "$MKDTBO"
-          fi
 
           echo "===== Daftar file hasil build di out/arch/arm64/boot ====="
           find out/arch/arm64/boot -type f \( -name "*.img" -o -name "*.dtb" -o -name "Image*" \)
           echo "=========================================================="
 
           # Buat dtbo.img dari semua *.dtbo
-          DTBO_LIST=$(find out/arch/arm64/boot/dts/ -type f -name "*.dtbo" | tr '\n' ' ')
-          if [[ ! -z "$DTBO_LIST" ]]; then
-            echo "Membuat dtbo.img dari dtbo list..."
-            python3 kernel-source/scripts/mkdtboimg.py create dtbo.img --dtbo $DTBO_LIST --page_size=4096
-            cp dtbo.img AnyKernel3/dtbo.img
+          DTBO_PATH="out/arch/arm64/boot/dts/vendor/qcom"
+          if [ -z "$(find $DTBO_PATH -name '*.dtbo')" ]; then
+            echo "Tidak ditemukan .dtbo, mencoba konversi dari .dtb..."
+            for file in $DTBO_PATH/*.dtb; do
+            dtc -I dtb -O dtb -o "${file%.dtb}.dtbo" "$file"
+            done
           fi
 
           # Buat dtb.img dari semua *.dtb dengan mkdtbimg.py (lebih aman daripada cat)
           DTB_LIST=$(find out/arch/arm64/boot/dts/ -type f -name "*.dtb" | tr '\n' ' ')
           if [[ ! -z "$DTB_LIST" ]]; then
             echo "Membuat dtb.img dari dtb list..."
-            python3 kernel-source/scripts/mkdtbimg.py create dtb.img --dtb $DTB_LIST --page_size=4096
+            cat $DTB_LIST > dtb.img
             cp dtb.img AnyKernel3/dtb.img
           fi
+
 
           # Copy Image kernel sesuai prioritas yang ada
           if [[ -f out/arch/arm64/boot/Image.gz-dtb ]]; then
