@@ -70,23 +70,28 @@ jobs:
           find out/arch/arm64/boot -type f \( -name "*.img" -o -name "*.dtb" -o -name "Image*" \)
           echo "=========================================================="
 
-          # Buat dtbo.img dari semua *.dtbo
+          # Buat dtbo.img dari semua *.dtbo dengan mkdtbo.py
           DTBO_PATH="out/arch/arm64/boot/dts/vendor/qcom"
           if [ -z "$(find $DTBO_PATH -name '*.dtbo')" ]; then
             echo "Tidak ditemukan .dtbo, mencoba konversi dari .dtb..."
             for file in $DTBO_PATH/*.dtb; do
-            dtc -I dtb -O dtb -o "${file%.dtb}.dtbo" "$file"
+              dtc -I dtb -O dtb -o "${file%.dtb}.dtbo" "$file"
             done
           fi
 
-          # Buat dtb.img dari semua *.dtb dengan mkdtbimg.py (lebih aman daripada cat)
+          # Buat dtbo.img dari semua *.dtbo menggunakan mkdtbo.py
+          if [ -n "$(find $DTBO_PATH -name '*.dtbo')" ]; then
+            python3 mkdtbo.py --output=out/arch/arm64/boot/dtbo.img $DTBO_PATH/*.dtbo
+            cp out/arch/arm64/boot/dtbo.img AnyKernel3/dtbo.img
+          fi
+
+          # Buat dtb.img dari semua *.dtb dengan concat
           DTB_LIST=$(find out/arch/arm64/boot/dts/ -type f -name "*.dtb" | tr '\n' ' ')
           if [[ ! -z "$DTB_LIST" ]]; then
             echo "Membuat dtb.img dari dtb list..."
             cat $DTB_LIST > dtb.img
             cp dtb.img AnyKernel3/dtb.img
           fi
-
 
           # Copy Image kernel sesuai prioritas yang ada
           if [[ -f out/arch/arm64/boot/Image.gz-dtb ]]; then
