@@ -28,9 +28,8 @@ jobs:
           mkdir -p clang
           curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250531-release/Clang-21.0.0git-20250531.tar.gz | tar -xzv -C clang
 
-      - name: Pull kernel source
-        run: |
-          git clone --depth=1 ${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
+      - name: Clone private kernel repo
+        run: git clone --depth=1 https://x-access-token:${{ secrets.GH_PAT }}@github.com/AIV-97/kernel_6115.git -b 13 kernel-source
 
       - name: Checking build DTB
         run: |
