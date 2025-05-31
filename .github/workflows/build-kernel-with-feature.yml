@@ -79,10 +79,14 @@ jobs:
             done
           fi
 
-          # Buat dtbo.img dari semua *.dtbo menggunakan mkdtbo.py
+      - name: Create dtbo.img with mkdtboimg.py
+        run: |
+          DTBO_PATH="out/arch/arm64/boot/dts/vendor/qcom"
           if [ -n "$(find $DTBO_PATH -name '*.dtbo')" ]; then
-            python3 mkdtbo.py --output=out/arch/arm64/boot/dtbo.img $DTBO_PATH/*.dtbo
-            cp out/arch/arm64/boot/dtbo.img AnyKernel3/dtbo.img
+            cd kernel-source
+            python3 scripts/mkdtboimg.py ../dtbo.img ../$DTBO_PATH/*.dtbo
+            cd ..
+            cp dtbo.img AnyKernel3/dtbo.img
           fi
 
           # Buat dtb.img dari semua *.dtb dengan concat
