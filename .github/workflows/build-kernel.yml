@@ -42,39 +42,32 @@ jobs:
         run: |
           export KBUILD_BUILD_USER="Fraschze97"
           export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
-          args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1"
           cd kernel-source
           clang -v
-          make $args ${{ env.KERNEL_CONFIG }} KCFLAGS=-Wno-default-const-init-var-unsafe
-          make -j$(nproc --all) $args Image.gz-dtb dtbs
 
-          # Build dtbo.img (if dtbo not present)
-          DTBO_DIR="../out/arch/arm64/boot/dts/vendor/qcom"
-          if [ -z "$(find $DTBO_DIR -name '*.dtbo' 2>/dev/null)" ]; then
-            for dtb in $DTBO_DIR/*.dtb; do
-              dtc -I dtb -O dtb -o "${dtb%.dtb}.dtbo" "$dtb"
-            done
-          fi
+          # Set make args
+          args="ARCH=arm64 O=../out LLVM=1 LLVM_IAS=1"
 
-          if [ -n "$(find $DTBO_DIR -name '*.dtbo' 2>/dev/null)" ]; then
-            python3 scripts/mkdtboimg.py create dtbo.img $(find $DTBO_DIR -name '*.dtbo')
-            cp dtbo.img ../AnyKernel3/dtbo.img
-          fi
+          # Build defconfig
+          make $args $KERNEL_CONFIG KCFLAGS=-Wno-default-const-init-var-unsafe
+
+          # Build kernel image, dtbs, and dtbo.img (target sudah disiapkan di Makefile)
+          make -j$(nproc) $args Image.gz-dtb dtbs dtbo.img
+
+          # Copy hasil build ke AnyKernel3
+          cp ../out/arch/arm64/boot/Image.gz-dtb ../AnyKernel3/zImage
+          cp ../out/arch/arm64/boot/dtbo.img ../AnyKernel3/dtbo.img
 
       - name: Package Kernel ZIP
         run: |
-          if [[ -f out/arch/arm64/boot/Image.gz-dtb ]]; then
-            cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
-          fi
-
           DATE=$(date +%d%m%y)
           RAND=$(shuf -i 1000-9999 -n 1)
           KERNEL_NAME="bengal"
 
           cd AnyKernel3
-          zip -r9 "../Cassia-${KERNEL_NAME}-perf-${DATE}-${RAND}-KSU-SUSFS.zip" . -x "*.git*" "*.md"
+          zip -r9 "../Cassia-${KERNEL_NAME}-perf-${DATE}-${RAND}.zip" . -x "*.git*" "*.md"
 
-          echo "NEW_ZIP_NAME=Cassia-${KERNEL_NAME}-perf-${DATE}-${RAND}-KSU-SUSFS.zip" >> $GITHUB_ENV
+          echo "NEW_ZIP_NAME=Cassia-${KERNEL_NAME}-perf-${DATE}-${RAND}.zip" >> $GITHUB_ENV
 
       - name: Upload Kernel ZIP Artifact
         uses: actions/upload-artifact@v4
