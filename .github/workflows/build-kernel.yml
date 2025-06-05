@@ -22,11 +22,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y bc bison flex libssl-dev libelf-dev python3 python-is-python3 make clang lld curl
-          
-      - name: Prepare AnyKernel3 and Package ZIP
-        run: |
-          git clone --depth=1 ${{ env.ANYKERNEL_SOURCE }} -b ${{ env.ANYKERNEL_SOURCE_BRANCH }} AnyKernel3
-          rm -rf AnyKernel3/.git AnyKernel3/.github AnyKernel3/LICENSE AnyKernel3/README.md
 
       - name: Pull Clang Toolchain
         run: |
@@ -38,24 +33,35 @@ jobs:
         run: |
           git clone --depth=1 https://x-access-token:${{ secrets.GH_PAT }}@github.com/AIV-97/kernel_6115.git -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
 
-      - name: Build Kernel and dtbo.img
+      - name: Prepare AnyKernel3 Directory
+        run: |
+          git clone --depth=1 ${{ env.ANYKERNEL_SOURCE }} -b ${{ env.ANYKERNEL_SOURCE_BRANCH }} AnyKernel3
+          rm -rf AnyKernel3/.git AnyKernel3/.github AnyKernel3/LICENSE AnyKernel3/README.md
+
+      - name: Build Kernel & dtbo.img
         run: |
           export KBUILD_BUILD_USER="Fraschze97"
           export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
 
           cd kernel-source
 
-          # Load kernel defconfig
+          # Load kernel config
           make ARCH=arm64 O=../out ${{ env.KERNEL_CONFIG }}
 
-          # Build kernel
+          # Build kernel & DTBs
           make -j$(nproc) ARCH=arm64 O=../out \
-               CC=clang \
-               LLVM=1 \
-               LLVM_IAS=1 \
-               Image.gz-dtb dtbs
+            CC=clang \
+            LLVM=1 \
+            LLVM_IAS=1 \
+            CROSS_COMPILE=llvm- \
+            AR=llvm-ar \
+            NM=llvm-nm \
+            OBJCOPY=llvm-objcopy \
+            OBJDUMP=llvm-objdump \
+            STRIP=llvm-strip \
+            Image.gz-dtb dtbs
 
-          # Build dtbo.img if not already present
+          # Build dtbo.img (if dtbo not present)
           DTBO_DIR="../out/arch/arm64/boot/dts/vendor/qcom"
           if [ -z "$(find $DTBO_DIR -name '*.dtbo' 2>/dev/null)" ]; then
             for dtb in $DTBO_DIR/*.dtb; do
@@ -65,10 +71,11 @@ jobs:
 
           if [ -n "$(find $DTBO_DIR -name '*.dtbo' 2>/dev/null)" ]; then
             python3 scripts/mkdtboimg.py create dtbo.img $(find $DTBO_DIR -name '*.dtbo')
-            mkdir -p ../AnyKernel3
             cp dtbo.img ../AnyKernel3/dtbo.img
           fi
 
+      - name: Package Kernel ZIP
+        run: |
           if [[ -f out/arch/arm64/boot/Image.gz-dtb ]]; then
             cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
           fi
@@ -98,7 +105,7 @@ jobs:
           echo "LATEST_COMMIT=$(cd kernel-source && git log -1 --pretty=format:'%s (%an)' 2>/dev/null || echo 'unknown')" >> $GITHUB_ENV
           echo "CLANG_VERSION=$(clang/bin/clang --version | head -n1)" >> $GITHUB_ENV
 
-      - name: Upload to Telegram
+      - name: Upload Kernel ZIP to Telegram
         env:
           BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           CHAT_ID: ${{ secrets.TG_CHAT_ID }}
