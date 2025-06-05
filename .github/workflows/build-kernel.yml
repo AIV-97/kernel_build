@@ -52,11 +52,23 @@ jobs:
           make $args $KERNEL_CONFIG KCFLAGS=-Wno-default-const-init-var-unsafe
 
           # Build kernel image, dtbs, and dtbo.img (target sudah disiapkan di Makefile)
-          make -j$(nproc) $args Image.gz-dtb dtbs dtbo.img
+          make -j$(nproc) $args
 
-          # Copy hasil build ke AnyKernel3
-          cp ../out/arch/arm64/boot/Image.gz-dtb ../AnyKernel3/zImage
-          cp ../out/arch/arm64/boot/dtbo.img ../AnyKernel3/dtbo.img
+      - name: Package kernel
+        run: |
+          git clone --depth=1 ${{ env.ANYKERNEL_SOURCE }} -b ${{ env.ANYKERNEL_SOURCE_BRANCH }} AnyKernel3 && rm -rf AnyKernel3/.git AnyKernel3/.github AnyKernel3/LICENSE AnyKernel3/README.md
+          if [[ -f out/arch/arm64/boot/Image.gz-dtb ]]; then
+            cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/Image.gz-dtb
+          elif [[ -f out/arch/arm64/boot/Image-dtb ]]; then
+            cp out/arch/arm64/boot/Image-dtb AnyKernel3/Image-dtb
+          elif [[ -f out/arch/arm64/boot/Image.gz ]]; then
+            cp out/arch/arm64/boot/Image.gz AnyKernel3/Image.gz
+          elif [[ -f out/arch/arm64/boot/Image ]]; then
+            cp out/arch/arm64/boot/Image AnyKernel3/Image
+          fi
+          if [ -f out/arch/arm64/boot/dtbo.img ]; then
+            cp out/arch/arm64/boot/dtbo.img AnyKernel3/dtbo.img
+          fi
 
       - name: Package Kernel ZIP
         run: |
