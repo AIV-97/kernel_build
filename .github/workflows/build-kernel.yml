@@ -25,15 +25,16 @@ jobs:
           curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250604-release/Clang-21.0.0git-20250604.tar.gz \
             | tar -xzv -C clang
 
-      - name: Clone Kernel Source
+      - name: Clone Private Kernel Source
         run: |
-          git clone --depth=1 https://x-access-token:${{ secrets.GH_PAT }}@github.com/AIV-97/kernel_6115.git -b 13 kernel-source
+          PRIVATE_URL=$(echo "${{ env.KERNEL_SOURCE }}" | sed "s|https://|https://x-access-token:${{ secrets.GH_PAT }}@|")
+          git clone --depth=1 "$PRIVATE_URL" -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
 
       - name: Build Kernel & dtbo.img
         run: |
           export KBUILD_BUILD_USER="Fraschze97"
           export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
-          args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1"
+          args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }}"
 
           cd kernel-source
           clang -v
@@ -50,6 +51,7 @@ jobs:
 
           if [ -n "$(find ../$DTBO_DIR -name '*.dtbo' 2>/dev/null)" ]; then
             python3 scripts/mkdtboimg.py create dtbo.img $(find ../$DTBO_DIR -name '*.dtbo')
+            mkdir -p ../AnyKernel3
             cp dtbo.img ../AnyKernel3/dtbo.img
           fi
 
@@ -59,7 +61,7 @@ jobs:
           rm -rf AnyKernel3/.git AnyKernel3/.github AnyKernel3/LICENSE AnyKernel3/README.md
 
           echo "===== Built files ====="
-          find out/arch/arm64/boot -type f -name "*.img" -o -name "*.dtb" -o -name "Image*"
+          find out/arch/arm64/boot -type f -name "*.img" -o -name "*.dtb" -o -name "Image*"
           echo "========================"
 
           [[ -f out/arch/arm64/boot/Image.gz-dtb ]] && cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
