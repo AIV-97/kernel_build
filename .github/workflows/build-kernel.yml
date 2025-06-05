@@ -42,24 +42,11 @@ jobs:
         run: |
           export KBUILD_BUILD_USER="Fraschze97"
           export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
-
+          args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1"
           cd kernel-source
-
-          # Load kernel config
-          make ARCH=arm64 O=../out ${{ env.KERNEL_CONFIG }}
-
-          # Build kernel & DTBs
-          make -j$(nproc) ARCH=arm64 O=../out \
-            CC=clang \
-            LLVM=1 \
-            LLVM_IAS=1 \
-            CROSS_COMPILE=llvm- \
-            AR=llvm-ar \
-            NM=llvm-nm \
-            OBJCOPY=llvm-objcopy \
-            OBJDUMP=llvm-objdump \
-            STRIP=llvm-strip \
-            Image.gz-dtb dtbs
+          clang -v
+          make $args ${{ env.KERNEL_CONFIG }} KCFLAGS=-Wno-default-const-init-var-unsafe
+          make -j$(nproc --all) $args Image.gz-dtb dtbs
 
           # Build dtbo.img (if dtbo not present)
           DTBO_DIR="../out/arch/arm64/boot/dts/vendor/qcom"
