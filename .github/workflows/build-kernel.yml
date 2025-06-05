@@ -6,18 +6,27 @@ on:
 jobs:
   build-kernel:
     runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
 
-      - name: Setup environment
+    steps:
+      - name: Checkout config and source repos
+        uses: actions/checkout@v4
+
+      - name: Load config.env variables
         run: |
           while IFS='=' read -r key value; do
             [[ $key =~ ^#.*$ || -z $key ]] && continue
             echo "$key=$value" >> $GITHUB_ENV
           done < config.env
 
+      - name: Install dependencies
+        run: |
           sudo apt-get update
-          sudo apt-get install -y python2 libncurses5 libselinux-dev python3
+          sudo apt-get install -y bc bison flex libssl-dev libelf-dev python3 python-is-python3 make clang lld curl
+          
+      - name: Prepare AnyKernel3 and Package ZIP
+        run: |
+          git clone --depth=1 ${{ env.ANYKERNEL_SOURCE }} -b ${{ env.ANYKERNEL_SOURCE_BRANCH }} AnyKernel3
+          rm -rf AnyKernel3/.git AnyKernel3/.github AnyKernel3/LICENSE AnyKernel3/README.md
 
       - name: Pull Clang Toolchain
         run: |
@@ -25,57 +34,55 @@ jobs:
           curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250604-release/Clang-21.0.0git-20250604.tar.gz \
             | tar -xzv -C clang
 
-      - name: Clone Private Kernel Source
+      - name: Clone Kernel Source
         run: |
-          PRIVATE_URL=$(echo "${{ env.KERNEL_SOURCE }}" | sed "s|https://|https://x-access-token:${{ secrets.GH_PAT }}@|")
-          git clone --depth=1 "$PRIVATE_URL" -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
+          git clone --depth=1 https://x-access-token:${{ secrets.GH_PAT }}@github.com/AIV-97/kernel_6115.git -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
 
-      - name: Build Kernel & dtbo.img
+      - name: Build Kernel and dtbo.img
         run: |
           export KBUILD_BUILD_USER="Fraschze97"
           export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
-          args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }}"
 
           cd kernel-source
-          clang -v
 
-          make $args ${{ env.KERNEL_CONFIG }} KCFLAGS=-Wno-default-const-init-var-unsafe
-          make -j$(nproc --all) $args Image.gz-dtb dtbs
+          # Load kernel defconfig
+          make ARCH=arm64 O=../out ${{ env.KERNEL_CONFIG }}
 
-          DTBO_DIR="out/arch/arm64/boot/dts/vendor/qcom"
-          if [ -z "$(find ../$DTBO_DIR -name '*.dtbo' 2>/dev/null)" ]; then
-            for dtb in ../$DTBO_DIR/*.dtb; do
+          # Build kernel
+          make -j$(nproc) ARCH=arm64 O=../out \
+               CC=clang \
+               LLVM=1 \
+               LLVM_IAS=1 \
+               Image.gz-dtb dtbs
+
+          # Build dtbo.img if not already present
+          DTBO_DIR="../out/arch/arm64/boot/dts/vendor/qcom"
+          if [ -z "$(find $DTBO_DIR -name '*.dtbo' 2>/dev/null)" ]; then
+            for dtb in $DTBO_DIR/*.dtb; do
               dtc -I dtb -O dtb -o "${dtb%.dtb}.dtbo" "$dtb"
             done
           fi
 
-          if [ -n "$(find ../$DTBO_DIR -name '*.dtbo' 2>/dev/null)" ]; then
-            python3 scripts/mkdtboimg.py create dtbo.img $(find ../$DTBO_DIR -name '*.dtbo')
+          if [ -n "$(find $DTBO_DIR -name '*.dtbo' 2>/dev/null)" ]; then
+            python3 scripts/mkdtboimg.py create dtbo.img $(find $DTBO_DIR -name '*.dtbo')
             mkdir -p ../AnyKernel3
             cp dtbo.img ../AnyKernel3/dtbo.img
           fi
 
-      - name: Package Kernel
-        run: |
-          git clone --depth=1 ${{ env.ANYKERNEL_SOURCE }} -b ${{ env.ANYKERNEL_SOURCE_BRANCH }} AnyKernel3
-          rm -rf AnyKernel3/.git AnyKernel3/.github AnyKernel3/LICENSE AnyKernel3/README.md
-
-          echo "===== Built files ====="
-          find out/arch/arm64/boot -type f -name "*.img" -o -name "*.dtb" -o -name "Image*"
-          echo "========================"
-
-          [[ -f out/arch/arm64/boot/Image.gz-dtb ]] && cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
+          if [[ -f out/arch/arm64/boot/Image.gz-dtb ]]; then
+            cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
+          fi
 
           DATE=$(date +%d%m%y)
           RAND=$(shuf -i 1000-9999 -n 1)
-          KERNEL_NAME=$(basename ${{ env.KERNEL_SOURCE }} | sed 's/kernel_//')
-          ZIP_NAME="Cassia-${KERNEL_NAME}-perf-${DATE}-${RAND}-KSU-SUSFS.zip"
+          KERNEL_NAME="bengal"
 
           cd AnyKernel3
-          zip -r9 "../$ZIP_NAME" . -x "*.git*" "*.md"
-          echo "NEW_ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+          zip -r9 "../Cassia-${KERNEL_NAME}-perf-${DATE}-${RAND}-KSU-SUSFS.zip" . -x "*.git*" "*.md"
 
-      - name: Upload Artifact
+          echo "NEW_ZIP_NAME=Cassia-${KERNEL_NAME}-perf-${DATE}-${RAND}-KSU-SUSFS.zip" >> $GITHUB_ENV
+
+      - name: Upload Kernel ZIP Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Kernel-ZIP
@@ -86,7 +93,7 @@ jobs:
         run: |
           echo "BRANCH=${{ env.KERNEL_SOURCE_BRANCH }}" >> $GITHUB_ENV
           echo "DATE=$(date +%d%m%y)" >> $GITHUB_ENV
-          echo "KERNEL_NAME=$(basename ${{ env.KERNEL_SOURCE }} | sed 's/kernel_//')" >> $GITHUB_ENV
+          echo "KERNEL_NAME=bengal" >> $GITHUB_ENV
           echo "LINUX_VER=$(cat kernel-source/out/include/generated/utsrelease.h 2>/dev/null | cut -d '\"' -f2 || echo 'unknown')" >> $GITHUB_ENV
           echo "LATEST_COMMIT=$(cd kernel-source && git log -1 --pretty=format:'%s (%an)' 2>/dev/null || echo 'unknown')" >> $GITHUB_ENV
           echo "CLANG_VERSION=$(clang/bin/clang --version | head -n1)" >> $GITHUB_ENV
@@ -98,19 +105,17 @@ jobs:
           BRANCH: ${{ env.BRANCH }}
           LINUX_VER: ${{ env.LINUX_VER }}
           LATEST_COMMIT: ${{ env.LATEST_COMMIT }}
-          KSU_COMMIT: ${{ env.KSU_COMMIT }}
           CLANG_VERSION: ${{ env.CLANG_VERSION }}
           NEW_ZIP_NAME: ${{ env.NEW_ZIP_NAME }}
           DATE: ${{ env.DATE }}
           KERNEL_NAME: ${{ env.KERNEL_NAME }}
         run: |
-          TEXT="📍 <b>Branch:</b> $BRANCH
-          🐧 <b>Linux version:</b> $LINUX_VER
-          ♻️ <b>Latest commit:</b> $LATEST_COMMIT
-          📛 <b>KSU commit:</b> $KSU_COMMIT
-          🔰 <b>Compiler:</b> $CLANG_VERSION
-          ⬇️ <b>Link:</b> <a href=\"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\">Download</a>
-          🏷️ #$DATE #${KERNEL_NAME}KSU #stable"
+          TEXT="Branch: $BRANCH
+          Linux version: $LINUX_VER
+          Latest commit: $LATEST_COMMIT
+          Compiler: $CLANG_VERSION
+          Link: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          Tags: #$DATE #${KERNEL_NAME}KSU #stable"
 
           curl -s -X POST https://api.telegram.org/bot$BOT_TOKEN/sendMessage \
             -d chat_id=$CHAT_ID -d text="$TEXT" -d parse_mode="HTML"
