@@ -1,67 +1,117 @@
-name: Build MikaKernel
-
+name: Build Kernel
 
 on:
   workflow_dispatch:
 
-
 jobs:
   build-kernel:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup environment
         run: |
-          echo "ANYKERNEL_SOURCE=$(cat config.env | grep -w "ANYKERNEL_SOURCE" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
-          echo "ANYKERNEL_SOURCE_BRANCH=$(cat config.env | grep -w "ANYKERNEL_SOURCE_BRANCH" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
-          echo "KERNEL_SOURCE=$(cat config.env | grep -w "KERNEL_SOURCE" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
-          echo "KERNEL_SOURCE_BRANCH=$(cat config.env | grep -w "KERNEL_SOURCE_BRANCH" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
-          echo "KERNEL_CONFIG=$(cat config.env | grep -w "KERNEL_CONFIG" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
-          echo "BUILD_ARGS=$(cat config.env | grep -w "BUILD_ARGS" | head -n 1 | cut -d ":" -f 2)" >> $GITHUB_ENV
+          while IFS='=' read -r key value; do
+            [[ $key =~ ^#.*$ || -z $key ]] && continue
+            echo "$key=$value" >> $GITHUB_ENV
+          done < config.env
 
-      - name: Pull toolchain
-        run: |
-          git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 aarch64-linux-android-4.9
-          git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 arm-linux-androideabi-4.9
-          mkdir clang && curl https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android14-dev/clang-r487747c.tar.gz -RLO && tar -C clang/ -xf clang-*.tar.gz
+          sudo apt-get update
+          sudo apt-get install -y python2 libncurses5 libselinux-dev python3
 
-      - name: Pull kernel source
+      - name: Pull Clang Toolchain
         run: |
-          git clone --depth=1 ${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
+          mkdir -p clang
+          curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250604-release/Clang-21.0.0git-20250604.tar.gz \
+            | tar -xzv -C clang
 
-      - name: Build kernel
+      - name: Clone Kernel Source
         run: |
-          export KBUILD_BUILD_USER="zclkkk"
-          export KBUILD_BUILD_HOST="workspace"
-          export PATH=$GITHUB_WORKSPACE/clang/bin:${PATH}
-          args="                  ARCH=arm64 \
-                                  O=../out \
-                                  ${{ env.BUILD_ARGS }} \
-                                  CLANG_TRIPLE=aarch64-linux-gnu- \
-                                  CROSS_COMPILE=$GITHUB_WORKSPACE/aarch64-linux-android-4.9/bin/aarch64-linux-android- \
-                                  CROSS_COMPILE_ARM32=$GITHUB_WORKSPACE/arm-linux-androideabi-4.9/bin/arm-linux-androideabi- "
+          git clone --depth=1 https://x-access-token:${{ secrets.GH_PAT }}@github.com/AIV-97/kernel_6115.git -b 13 kernel-source
+
+      - name: Build Kernel & dtbo.img
+        run: |
+          export KBUILD_BUILD_USER="Fraschze97"
+          export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
+          args="ARCH=arm64 O=../out ${{ env.BUILD_ARGS }} LLVM=1 LLVM_IAS=1"
+
           cd kernel-source
-          make ${args} ${{ env.KERNEL_CONFIG }}
-          make -j$(($(getconf _NPROCESSORS_ONLN) * 2)) ${args}
+          clang -v
 
-      - name: Package kernel
+          make $args ${{ env.KERNEL_CONFIG }} KCFLAGS=-Wno-default-const-init-var-unsafe
+          make -j$(nproc --all) $args Image.gz-dtb dtbs
+
+          DTBO_DIR="out/arch/arm64/boot/dts/vendor/qcom"
+          if [ -z "$(find ../$DTBO_DIR -name '*.dtbo' 2>/dev/null)" ]; then
+            for dtb in ../$DTBO_DIR/*.dtb; do
+              dtc -I dtb -O dtb -o "${dtb%.dtb}.dtbo" "$dtb"
+            done
+          fi
+
+          if [ -n "$(find ../$DTBO_DIR -name '*.dtbo' 2>/dev/null)" ]; then
+            python3 scripts/mkdtboimg.py create dtbo.img $(find ../$DTBO_DIR -name '*.dtbo')
+            cp dtbo.img ../AnyKernel3/dtbo.img
+          fi
+
+      - name: Package Kernel
         run: |
-          git clone --depth=1 ${{ env.ANYKERNEL_SOURCE }} -b ${{ env.ANYKERNEL_SOURCE_BRANCH }} AnyKernel3 && rm -rf AnyKernel3/.git AnyKernel3/.github AnyKernel3/LICENSE AnyKernel3/README.md
-          if [[ -f out/arch/arm64/boot/Image.gz-dtb ]]; then
-            cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/Image.gz-dtb
-          elif [[ -f out/arch/arm64/boot/Image-dtb ]]; then
-            cp out/arch/arm64/boot/Image-dtb AnyKernel3/Image-dtb
-          elif [[ -f out/arch/arm64/boot/Image.gz ]]; then
-            cp out/arch/arm64/boot/Image.gz AnyKernel3/Image.gz
-          elif [[ -f out/arch/arm64/boot/Image ]]; then
-            cp out/arch/arm64/boot/Image AnyKernel3/Image
-          fi
-          if [ -f out/arch/arm64/boot/dtbo.img ]; then
-            cp out/arch/arm64/boot/dtbo.img AnyKernel3/dtbo.img
-          fi
+          git clone --depth=1 ${{ env.ANYKERNEL_SOURCE }} -b ${{ env.ANYKERNEL_SOURCE_BRANCH }} AnyKernel3
+          rm -rf AnyKernel3/.git AnyKernel3/.github AnyKernel3/LICENSE AnyKernel3/README.md
 
-      - name: Upload kernel to artifact
+          echo "===== Built files ====="
+          find out/arch/arm64/boot -type f -name "*.img" -o -name "*.dtb" -o -name "Image*"
+          echo "========================"
+
+          [[ -f out/arch/arm64/boot/Image.gz-dtb ]] && cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
+
+          DATE=$(date +%d%m%y)
+          RAND=$(shuf -i 1000-9999 -n 1)
+          KERNEL_NAME=$(basename ${{ env.KERNEL_SOURCE }} | sed 's/kernel_//')
+          ZIP_NAME="Cassia-${KERNEL_NAME}-perf-${DATE}-${RAND}-KSU-SUSFS.zip"
+
+          cd AnyKernel3
+          zip -r9 "../$ZIP_NAME" . -x "*.git*" "*.md"
+          echo "NEW_ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: output_kernel
-          path: AnyKernel3/*
+          name: Kernel-ZIP
+          path: ${{ env.NEW_ZIP_NAME }}
+
+      - name: Extract Build Info
+        id: extract
+        run: |
+          echo "BRANCH=${{ env.KERNEL_SOURCE_BRANCH }}" >> $GITHUB_ENV
+          echo "DATE=$(date +%d%m%y)" >> $GITHUB_ENV
+          echo "KERNEL_NAME=$(basename ${{ env.KERNEL_SOURCE }} | sed 's/kernel_//')" >> $GITHUB_ENV
+          echo "LINUX_VER=$(cat kernel-source/out/include/generated/utsrelease.h 2>/dev/null | cut -d '\"' -f2 || echo 'unknown')" >> $GITHUB_ENV
+          echo "LATEST_COMMIT=$(cd kernel-source && git log -1 --pretty=format:'%s (%an)' 2>/dev/null || echo 'unknown')" >> $GITHUB_ENV
+          echo "CLANG_VERSION=$(clang/bin/clang --version | head -n1)" >> $GITHUB_ENV
+
+      - name: Upload to Telegram
+        env:
+          BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          BRANCH: ${{ env.BRANCH }}
+          LINUX_VER: ${{ env.LINUX_VER }}
+          LATEST_COMMIT: ${{ env.LATEST_COMMIT }}
+          KSU_COMMIT: ${{ env.KSU_COMMIT }}
+          CLANG_VERSION: ${{ env.CLANG_VERSION }}
+          NEW_ZIP_NAME: ${{ env.NEW_ZIP_NAME }}
+          DATE: ${{ env.DATE }}
+          KERNEL_NAME: ${{ env.KERNEL_NAME }}
+        run: |
+          TEXT="📍 <b>Branch:</b> $BRANCH
+          🐧 <b>Linux version:</b> $LINUX_VER
+          ♻️ <b>Latest commit:</b> $LATEST_COMMIT
+          📛 <b>KSU commit:</b> $KSU_COMMIT
+          🔰 <b>Compiler:</b> $CLANG_VERSION
+          ⬇️ <b>Link:</b> <a href=\"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\">Download</a>
+          🏷️ #$DATE #${KERNEL_NAME}KSU #stable"
+
+          curl -s -X POST https://api.telegram.org/bot$BOT_TOKEN/sendMessage \
+            -d chat_id=$CHAT_ID -d text="$TEXT" -d parse_mode="HTML"
+
+          curl -F document=@"$NEW_ZIP_NAME" -F chat_id=$CHAT_ID \
+               -F caption="$NEW_ZIP_NAME" https://api.telegram.org/bot$BOT_TOKEN/sendDocument
