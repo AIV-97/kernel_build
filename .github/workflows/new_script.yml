@@ -1,4 +1,4 @@
-name: Kernel Build latest script
+name: Build Kernel 4.19 + dtbo.img
 
 on:
   workflow_dispatch:
@@ -6,6 +6,13 @@ on:
 jobs:
   build-kernel:
     runs-on: ubuntu-22.04
+
+    env:
+      KERNEL_CONFIG: vendor/bengal-perf_defconfig
+      KERNEL_SOURCE_BRANCH: 13
+      ANYKERNEL_SOURCE: https://github.com/AIV-97/AnyKernel3.git
+      ANYKERNEL_SOURCE_BRANCH: master
+      DEVICE: chime
 
     steps:
     - name: Checkout CI Repo
@@ -30,7 +37,7 @@ jobs:
     - name: Set up Zyc-Clang 21
       run: |
         mkdir -p clang
-        curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250605-release/Clang-21.0.0git-20250605.tar.gz \
+        curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250606-release/Clang-21.0.0git-20250606.tar.gz \
           | tar -xzv -C clang
 
     - name: Install Dependencies
@@ -40,7 +47,7 @@ jobs:
           libc6-dev libncurses5-dev ccache python3-pyelftools \
           python3-setuptools wget curl git build-essential
 
-    - name: Build Kernel + DTBs + DTBO
+    - name: Build Kernel + DTBs
       run: |
         export KBUILD_BUILD_USER="Fraschze97"
         export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
@@ -48,16 +55,15 @@ jobs:
         export ANYKERNEL_PATH=$GITHUB_WORKSPACE/AnyKernel3
 
         cd $KERNEL_PATH
-        clang -v
 
         make -j$(nproc) O=out ARCH=arm64 $KERNEL_CONFIG KCFLAGS=-Wno-default-const-init-var-unsafe \
           CC=clang LLVM=1 LLVM_IAS=1 \
           CLANG_TRIPLE=aarch64-linux-gnu- \
           CROSS_COMPILE=aarch64-linux-gnu- \
           CROSS_COMPILE_COMPAT=arm-linux-gnueabi- \
-          Image dtbs dtboimg
+          Image dtbs
 
-    - name: Build dtbo.img
+    - name: Build dtbo.img manually
       run: |
         export KERNEL_PATH=$GITHUB_WORKSPACE/kernel-source
         cd $KERNEL_PATH
