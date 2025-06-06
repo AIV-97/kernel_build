@@ -71,10 +71,13 @@ jobs:
         mkdir -p dtbo
         find out/arch/arm64/boot/dts/vendor/qcom -name "*.dtbo" -exec cp {} dtbo/ \;
 
-        git clone --depth=1 https://android.googlesource.com/platform/system/libufdt
-        cd libufdt/utils && make mkdtboimg && cd ../../
+        # Ambil mkdtboimg.py dari AOSP (prebuilt)
+        curl -LO https://android.googlesource.com/platform/system/libufdt/+/refs/heads/master/utils/src/mkdtboimg.py?format=TEXT
+        base64 -d mkdtboimg.py?format=TEXT > mkdtboimg.py
+        chmod +x mkdtboimg.py
 
-        ./libufdt/utils/mkdtboimg/mkdtboimg.py create dtbo.img \
+        # Buat dtbo.img
+        ./mkdtboimg.py create dtbo.img \
           --page_size=4096 \
           --dtb dtbo/*.dtbo
 
