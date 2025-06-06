@@ -22,8 +22,8 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y bc bison flex libssl-dev make \
-  libc6-dev libncurses5-dev ccache python3-pyelftools \
-  python3-setuptools wget curl git build-essential device-tree-compiler
+        libc6-dev libncurses5-dev ccache python3-pyelftools \
+        python3-setuptools wget curl git build-essential device-tree-compiler
 
     - name: Load config.env variables
       run: |
