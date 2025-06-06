@@ -1,0 +1,110 @@
+name: Kernel Build latest script
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-kernel:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout CI Repo
+      uses: actions/checkout@v4
+
+    - name: Load config.env variables
+      run: |
+        while IFS='=' read -r key value; do
+          [[ $key =~ ^#.*$ || -z $key ]] && continue
+          echo "$key=$value" >> $GITHUB_ENV
+        done < config.env
+
+    - name: Clone Kernel Source
+      run: |
+        git clone --depth=1 https://x-access-token:${{ secrets.GH_PAT }}@github.com/AIV-97/kernel_6115.git -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
+
+    - name: Clone AnyKernel3
+      run: |
+        git clone --depth=1 ${{ env.ANYKERNEL_SOURCE }} -b ${{ env.ANYKERNEL_SOURCE_BRANCH }} AnyKernel3
+        rm -rf AnyKernel3/.git AnyKernel3/.github AnyKernel3/LICENSE AnyKernel3/README.md
+
+    - name: Set up Zyc-Clang 21
+      run: |
+        mkdir -p clang
+        curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250605-release/Clang-21.0.0git-20250605.tar.gz \
+          | tar -xzv -C clang
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y bc bison flex libssl-dev make \
+          libc6-dev libncurses5-dev ccache python3-pyelftools \
+          python3-setuptools wget curl git build-essential
+
+    - name: Build Kernel + DTBs + DTBO
+      run: |
+        export KBUILD_BUILD_USER="Fraschze97"
+        export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
+        export KERNEL_PATH=$GITHUB_WORKSPACE/kernel-source
+        export ANYKERNEL_PATH=$GITHUB_WORKSPACE/AnyKernel3
+
+        cd $KERNEL_PATH
+        clang -v
+
+        make -j$(nproc) O=out ARCH=arm64 $KERNEL_CONFIG KCFLAGS=-Wno-default-const-init-var-unsafe \
+          CC=clang LLVM=1 LLVM_IAS=1 \
+          CLANG_TRIPLE=aarch64-linux-gnu- \
+          CROSS_COMPILE=aarch64-linux-gnu- \
+          CROSS_COMPILE_COMPAT=arm-linux-gnueabi- \
+          Image dtbs dtboimg
+
+    - name: Build dtbo.img
+      run: |
+        export KERNEL_PATH=$GITHUB_WORKSPACE/kernel-source
+        cd $KERNEL_PATH
+
+        mkdir -p dtbo
+        find out/arch/arm64/boot/dts/vendor/qcom -name "*.dtbo" -exec cp {} dtbo/ \;
+
+        git clone --depth=1 https://android.googlesource.com/platform/system/libufdt
+        cd libufdt/utils && make mkdtboimg && cd ../../
+
+        ./libufdt/utils/mkdtboimg/mkdtboimg.py create dtbo.img \
+          --page_size=4096 \
+          --dtb dtbo/*.dtbo
+
+        mv dtbo.img $KERNEL_PATH/dtbo.img
+
+    - name: Merge dtb.img
+      run: |
+        export KERNEL_PATH=$GITHUB_WORKSPACE/kernel-source
+        cd $KERNEL_PATH
+        find out/arch/arm64/boot/dts/vendor/qcom -name "*.dtb" -exec cat {} + > dtb.img
+
+    - name: Copy files to AnyKernel3
+      run: |
+        export KERNEL_PATH=$GITHUB_WORKSPACE/kernel-source
+        export ANYKERNEL_PATH=$GITHUB_WORKSPACE/AnyKernel3
+
+        cp $KERNEL_PATH/out/arch/arm64/boot/Image $ANYKERNEL_PATH/zImage
+        cp $KERNEL_PATH/dtbo.img $ANYKERNEL_PATH/dtbo.img
+        cp $KERNEL_PATH/dtb.img $ANYKERNEL_PATH/dtb.img
+
+    - name: Zip Kernel
+      run: |
+        export ANYKERNEL_PATH=$GITHUB_WORKSPACE/AnyKernel3
+        cd $ANYKERNEL_PATH
+        zip -r9 ../Kernel-${{ env.DEVICE }}.zip ./*
+
+    - name: Upload to Telegram
+      run: |
+        curl -F document=@Kernel-${{ env.DEVICE }}.zip \
+          -F caption="✅ Build success for *${{ env.DEVICE }}* on *${{ github.run_number }}*" \
+          -F chat_id=${{ secrets.CHAT_ID }} \
+          -F parse_mode=Markdown \
+          https://api.telegram.org/bot${{ secrets.BOT_TOKEN }}/sendDocument
+
+    - name: Upload as Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: Kernel-${{ env.DEVICE }}-${{ github.run_number }}
+        path: Kernel-${{ env.DEVICE }}.zip
