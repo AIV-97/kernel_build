@@ -26,7 +26,7 @@ jobs:
       - name: Pull Clang Toolchain
         run: |
           mkdir -p clang
-          curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250604-release/Clang-21.0.0git-20250604.tar.gz \
+          curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250607-release/Clang-21.0.0git-20250607.tar.gz \
             | tar -xzv -C clang
 
       - name: Clone Kernel Source
@@ -49,7 +49,8 @@ jobs:
           args="ARCH=arm64 O=../out LLVM=1 LLVM_IAS=1"
 
           # Build defconfig
-          make $args $KERNEL_CONFIG KCFLAGS=-Wno-default-const-init-var-unsafe
+          export KCFLAGS=-Wno-default-const-init-var-unsafe
+          make $args $KERNEL_CONFIG
 
           # Build kernel image, dtbs, and dtbo.img (target sudah disiapkan di Makefile)
           make -j$(nproc) $args
