@@ -50,6 +50,8 @@ jobs:
 
           # Build defconfig
           export KCFLAGS=-Wno-default-const-init-var-unsafe
+          export KCFLAGS=-Wdefault-const-init-field-unsafe
+          export KCFLAGS=-Wimplicit-enum-enum-cast
           make $args $KERNEL_CONFIG
 
           # Build kernel image, dtbs, and dtbo.img (target sudah disiapkan di Makefile)
