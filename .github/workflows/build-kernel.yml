@@ -26,9 +26,8 @@ jobs:
 
       - name: Pull Clang Toolchain
         run: |
-          mkdir -p greenforce-clang
-          curl -L https://github.com/greenforce-project/greenforce_clang/releases/download/01062025/greenforce-clang-21.0.0git-01062025.tar.gz \       
-            | tar -xzv -C greenforce-clang
+          mkdir -p greenforce-clang          
+          bash <(wget -qO- https://raw.githubusercontent.com/greenforce-project/greenforce_clang/refs/heads/main/get_clang.sh)
 
       - name: Clone Kernel Source
         run: |
