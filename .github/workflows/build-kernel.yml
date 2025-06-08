@@ -20,9 +20,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt install python2 libncurses5
-          sudo apt-get install libselinux-dev
+          sudo apt-get install -y bc bison flex libssl-dev make libc6-dev libncurses5-dev ccache python3-pyelftools python3-setuptools build-essential device-tree-compiler libtinfo5
+          sudo apt-get install -y curl git ftp lftp wget libarchive-tools ccache
+          sudo apt-get install -y zip unzip tar gzip bzip2 rar unrar
 
       - name: Pull Clang Toolchain
         run: |
@@ -47,7 +47,7 @@ jobs:
           clang -v
 
           # Set make args
-          args="ARCH=arm64 O=../out LLVM=1 LLVM_IAS=1"
+          args="ARCH=arm64 O=../out LD=ld.lld LLVM=1 LLVM_IAS=1"
 
           # Build defconfig
           export KCFLAGS=-Wno-default-const-init-var-unsafe
