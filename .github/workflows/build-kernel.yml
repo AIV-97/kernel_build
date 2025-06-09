@@ -21,8 +21,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt install python2 libncurses5
-          sudo apt-get install libselinux-dev
+          sudo apt-get install -y bc bison flex libssl-dev make libc6-dev libncurses5 ccache python2 build-essential device-tree-compiler libtinfo5 libselinux-dev curl git ftp lftp wget libarchive-tools zip unzip tar gzip bzip2 rar unrar
 
       - name: Pull Clang Toolchain
         run: |
