@@ -37,18 +37,11 @@ jobs:
         run: |
           git clone --depth=1 ${{ env.ANYKERNEL_SOURCE }} -b ${{ env.ANYKERNEL_SOURCE_BRANCH }} AnyKernel3
           rm -rf AnyKernel3/.git AnyKernel3/.github AnyKernel3/LICENSE AnyKernel3/README.md
-          
-      - name: Setup mkdtimg
-        run: |
-          mkdir -p $GITHUB_WORKSPACE/aosp_tools
-          curl -sL https://android.googlesource.com/platform/system/libufdt/+/refs/heads/master/utils/mkdtimg?format=TEXT | base64 -d > $GITHUB_WORKSPACE/aosp_tools/mkdtimg
-          chmod +x $GITHUB_WORKSPACE/aosp_tools/mkdtimg
-          echo "$GITHUB_WORKSPACE/aosp_tools" >> $GITHUB_PATH
 
       - name: Build Kernel & dtbo.img
         run: |
           export KBUILD_BUILD_USER="Fraschze97"
-          export PATH=$GITHUB_WORKSPACE/greenforce-clang/bin:$GITHUB_WORKSPACE/aosp_tools:$PATH
+          export PATH=$GITHUB_WORKSPACE/greenforce-clang/bin:$PATH
 
           cd kernel-source
           clang -v
