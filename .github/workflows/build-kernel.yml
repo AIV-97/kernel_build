@@ -55,7 +55,15 @@ jobs:
                 -Wno-type-limits"
 
           make KCFLAGS="$KFLAGS" $args $KERNEL_CONFIG
-          make -j$(nproc) KCFLAGS="$KFLAGS" $args Image dtb.img dtbo.img
+          make -j$(nproc) KCFLAGS="$KFLAGS" $args Image dtbs dtbo.img
+          
+      - name: List all DTB files
+        run: |
+          find arch/arm64/boot/dts/ -name "*.dtb"
+          
+      - name: Create dtb.img
+        run: |
+          find arch/arm64/boot/dts/ -name "*.dtb" -exec cat {} + > out/dtb.img
 
       - name: Package kernel
         run: |
