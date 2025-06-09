@@ -55,19 +55,21 @@ jobs:
                 -Wno-type-limits"
 
           make KCFLAGS="$KFLAGS" $args $KERNEL_CONFIG
-          make -j$(nproc) KCFLAGS="$KFLAGS" $args Image dtbs dtbo.img
-          
-      - name: List all DTB files
-        run: |
-          find arch/arm64/boot/dts/ -name "*.dtb"
-          
-      - name: Create dtb.img
-        run: |
-          find arch/arm64/boot/dts/ -name "*.dtb" -exec cat {} + > out/dtb.img
+          make -j$(nproc) KCFLAGS="$KFLAGS" $args Image dtbs dtbo.img dtb.img
 
       - name: Package kernel
         run: |
           cd AnyKernel3
+    
+          ls -lh ../out/arch/arm64/boot/
+
+          if [[ -f ../out/arch/arm64/boot/dtbo.img ]]; then
+            cp ../out/arch/arm64/boot/dtbo.img dtbo.img
+          fi
+
+          if [[ -f ../out/arch/arm64/boot/dtb.img ]]; then
+            cp ../out/arch/arm64/boot/dtb.img dtb.img
+          fi
 
           if [[ -f ../out/arch/arm64/boot/Image.gz-dtb ]]; then
             cp ../out/arch/arm64/boot/Image.gz-dtb Image.gz-dtb
@@ -79,9 +81,6 @@ jobs:
             cp ../out/arch/arm64/boot/Image Image
           else
             echo "❌ No kernel Image found! Build may have failed." && exit 1
-          fi
-          if [[ -f ../out/arch/arm64/boot/dtbo.img ]]; then
-            cp ../out/arch/arm64/boot/dtbo.img dtbo.img
           fi
        
       - name: Package Kernel ZIP
