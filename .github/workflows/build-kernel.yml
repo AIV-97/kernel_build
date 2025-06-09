@@ -49,19 +49,14 @@ jobs:
           # Set make args
           args="ARCH=arm64 O=../out LD=ld.lld LLVM=1 LLVM_IAS=1"
 
-          # Build defconfig
-          make KCFLAGS="-Wno-default-const-init-var-unsafe \
-            -Wdefault-const-init-field-unsafe \
-            -Wimplicit-enum-enum-cast \
-            -Wno-unused-value \
-            -Wno-type-limits" $args $KERNEL_CONFIG
+          KFLAGS="-Wno-default-const-init-var-unsafe \
+                    -Wdefault-const-init-field-unsafe \
+                    -Wimplicit-enum-enum-cast \
+                    -Wno-unused-value \
+                    -Wno-type-limits"
 
-          # Build kernel image, dtbs, and dtbo.img (target sudah disiapkan di Makefile)
-          make -j$(nproc) KCFLAGS="-Wno-default-const-init-var-unsafe \
-            -Wdefault-const-init-field-unsafe \
-            -Wimplicit-enum-enum-cast \
-            -Wno-unused-value \
-            -Wno-type-limits" $args
+          make KCFLAGS="$KFLAGS" $args $KERNEL_CONFIG
+          make -j$(nproc) KCFLAGS="$KFLAGS" $args
 
       - name: Package kernel
         run: |
