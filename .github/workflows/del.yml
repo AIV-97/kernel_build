@@ -35,7 +35,7 @@ jobs:
       actions: write
     steps:
       - name: Delete workflow runs
-        uses: Mattraks/delete-workflow-runs@v3
+        uses: Mattraks/delete-workflow-runs@v2
         with:
           token: ${{ secrets.GH_PAT }}
           repository: ${{ github.repository }}
