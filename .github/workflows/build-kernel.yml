@@ -30,7 +30,7 @@ jobs:
 
       - name: Clone Kernel Source
         run: |
-          git clone --depth=1 https://x-access-token:${{ secrets.GH_PAT }} ${{ env.KERNEL_SOURCE}} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
+          git clone --depth=1 https://${{ secrets.GH_PAT }}@github.com/${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
 
       - name: Prepare AnyKernel3 Directory
         run: |
