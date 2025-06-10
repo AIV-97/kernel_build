@@ -54,7 +54,7 @@ jobs:
                 -Wno-type-limits"
 
           make KCFLAGS="$KFLAGS" $args $KERNEL_CONFIG
-          make -j$(nproc) KCFLAGS="$KFLAGS" $args Image dtbs dtbo.img dtb.img
+          make -j$(nproc) KCFLAGS="$KFLAGS" $args
 
       - name: Package kernel
         run: |
