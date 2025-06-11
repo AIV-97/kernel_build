@@ -21,12 +21,12 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc bison flex libssl-dev make libc6-dev libncurses5 ccache python2 build-essential device-tree-compiler libtinfo5 libselinux-dev curl git ftp lftp wget libarchive-tools zip unzip tar gzip bzip2 rar unrar
+          sudo apt-get install -y bc bison flex libssl-dev make libc6-dev libncurses5 ccache python2 python3 build-essential device-tree-compiler libtinfo5 libselinux-dev curl git ftp lftp wget libarchive-tools zip unzip tar gzip bzip2 rar unrar
 
       - name: Pull Clang Toolchain
         run: |
-          mkdir -p greenforce-clang          
-          curl -L https://github.com/greenforce-project/greenforce_clang/releases/download/01062025/greenforce-clang-21.0.0git-01062025.tar.gz | tar -xzv -C greenforce-clang
+          mkdir -p clang          
+          curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250611-release/Clang-21.0.0git-20250611.tar.gz | tar -xzv -C clang
 
       - name: Clone Kernel Source
         run: |
@@ -40,7 +40,7 @@ jobs:
       - name: Build Kernel & dtbo.img
         run: |
           export KBUILD_BUILD_USER="Fraschze97"
-          export PATH=$GITHUB_WORKSPACE/greenforce-clang/bin:$PATH
+          export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
 
           cd kernel-source
           clang -v
