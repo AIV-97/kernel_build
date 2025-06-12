@@ -10,6 +10,14 @@ jobs:
     steps:
       - name: Checkout config and source repos
         uses: actions/checkout@v4
+        
+      - name: Create 4G swapfile
+        run: |
+          sudo fallocate -l 4G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          swapon --show
 
       - name: Load config.env variables
         run: |
