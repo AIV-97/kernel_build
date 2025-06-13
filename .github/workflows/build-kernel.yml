@@ -68,7 +68,7 @@ jobs:
                 -Wno-type-limits"
 
           make KCFLAGS="$KFLAGS" $args $KERNEL_CONFIG
-          make -j$(nproc) KCFLAGS="$KFLAGS" $args
+          make -j$(nproc --ignore=2) KCFLAGS="$KFLAGS" $args
 
       - name: Package kernel
         run: |
