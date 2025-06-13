@@ -10,7 +10,7 @@ jobs:
     steps:
       - name: Checkout config and source repos
         uses: actions/checkout@v4
-        
+
       - name: Create 4G swapfile
         run: |
           sudo fallocate -l 4G /swapfile
@@ -44,7 +44,7 @@ jobs:
 
       - name: Clone Kernel Source
         run: |
-          git clone --depth=1 https://${{ secrets.GH_PAT }}@github.com/${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
+          git clone --depth=20 https://${{ secrets.GH_PAT }}@github.com/${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
 
       - name: Prepare AnyKernel3 Directory
         run: |
@@ -95,7 +95,7 @@ jobs:
           else
             echo "❌ No kernel Image found! Build may have failed." && exit 1
           fi
-       
+
       - name: Package Kernel ZIP
         run: |
           DATE=$(date +%d%m%y)
@@ -128,7 +128,8 @@ jobs:
       - name: Get Compiler and Commits
         run: |
           echo "CLANG_VERSION=$($GITHUB_WORKSPACE/clang/bin/clang --version | head -n1)" >> $GITHUB_ENV
-          echo "LATEST_COMMITS=$(cd kernel-source && git log -10 --pretty=format:'• %s (%an)' | tr '\n' '|' || echo 'unknown')" >> $GITHUB_ENV
+          cd kernel-source
+          git log -20 --pretty=format:"• %s (%an)" > ../commits.txt
 
       - name: Upload Kernel ZIP to Telegram
         env:
@@ -136,27 +137,25 @@ jobs:
           CHAT_ID: ${{ secrets.TG_CHAT_ID }}
           BRANCH: ${{ env.BRANCH }}
           LINUX_VER: ${{ env.LINUX_VER }}
-          LATEST_COMMITS: ${{ env.LATEST_COMMITS }}
           CLANG_VERSION: ${{ env.CLANG_VERSION }}
           NEW_ZIP_NAME: ${{ env.NEW_ZIP_NAME }}
           DATE: ${{ env.DATE }}
           KERNEL_NAME: ${{ env.KERNEL_NAME }}
         run: |
-          # Ubah pipe ke newline
-          COMMITS_PRINT="$(echo "$LATEST_COMMITS" | tr '|' '\n')"
+          COMMITS_PRINT=$(cat commits.txt)
 
           TEXT="📦 <b>Kernel Build Success</b>
           🔀 <b>Branch:</b> $BRANCH
           🧬 <b>Linux version:</b> $LINUX_VER
           🛠 <b>Compiler:</b> $CLANG_VERSION
-          🧾 <b>Last 10 commits:</b>
+          🧾 <b>Last 20 commits:</b>
           $COMMITS_PRINT
           🔗 <b>CI:</b> https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           🏷️ <b>Tags:</b> #$DATE #${KERNEL_NAME}KSU #stable"
 
           curl -s -X POST https://api.telegram.org/bot$BOT_TOKEN/sendMessage \
             -d chat_id=$CHAT_ID \
-            -d text="$TEXT" \
+            --data-urlencode text="$TEXT" \
             -d parse_mode="HTML"
 
           curl -F document=@"$NEW_ZIP_NAME" -F chat_id=$CHAT_ID \
