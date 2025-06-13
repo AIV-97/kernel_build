@@ -44,7 +44,7 @@ jobs:
 
       - name: Clone Kernel Source
         run: |
-          git clone --depth=20 https://${{ secrets.GH_PAT }}@github.com/${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
+          git clone --depth=15 https://${{ secrets.GH_PAT }}@github.com/${{ env.KERNEL_SOURCE }} -b ${{ env.KERNEL_SOURCE_BRANCH }} kernel-source
 
       - name: Prepare AnyKernel3 Directory
         run: |
@@ -62,14 +62,14 @@ jobs:
 
           args="ARCH=arm64 O=../out LD=ld.lld LLVM=1 LLVM_IAS=1"
 
-          KFLAGS="-Wno-default-const-init-var-unsafe \
+          KCFLAGS="-Wno-default-const-init-var-unsafe \
                 -Wdefault-const-init-field-unsafe \
                 -Wimplicit-enum-enum-cast \
                 -Wno-unused-value \
                 -Wno-type-limits"
 
-          make KCFLAGS="$KFLAGS" $args $KERNEL_CONFIG
-          make -j$(nproc --ignore=2) KCFLAGS="$KFLAGS" $args
+          make $KCFLAGS $args $KERNEL_CONFIG
+          make -j$(nproc --ignore=2) $KCFLAGS $args
 
       - name: Package kernel
         run: |
