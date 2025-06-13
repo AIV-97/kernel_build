@@ -129,7 +129,7 @@ jobs:
         run: |
           echo "CLANG_VERSION=$($GITHUB_WORKSPACE/clang/bin/clang --version | head -n1)" >> $GITHUB_ENV
           cd kernel-source
-          git log -20 --pretty=format:"• %s (%an)" > ../commits.txt
+          git log -15 --pretty=format:"• %s" > ../commits.txt
 
       - name: Upload Kernel ZIP to Telegram
         env:
@@ -148,7 +148,7 @@ jobs:
           🔀 <b>Branch:</b> $BRANCH
           🧬 <b>Linux version:</b> $LINUX_VER
           🛠 <b>Compiler:</b> $CLANG_VERSION
-          🧾 <b>Last 20 commits:</b>
+          🧾 <b>Last 15 commits:</b>
           $COMMITS_PRINT
           🔗 <b>CI:</b> https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           🏷️ <b>Tags:</b> #$DATE #${KERNEL_NAME}KSU #stable"
