@@ -129,7 +129,7 @@ jobs:
         run: |
           echo "CLANG_VERSION=$($GITHUB_WORKSPACE/clang/bin/clang --version | head -n1)" >> $GITHUB_ENV
           cd kernel-source
-          git log -15 --pretty=format:"• %s" > ../commits.txt
+          git log -10 --pretty=format:"• %s" > ../commits.txt
 
       - name: Upload Kernel ZIP to Telegram
         env:
@@ -144,19 +144,17 @@ jobs:
         run: |
           COMMITS_PRINT=$(cat commits.txt)
 
-          TEXT="📦 <b>Kernel Build Success</b>
+          CAPTION="📦 <b>Kernel Build Success</b>
           🔀 <b>Branch:</b> $BRANCH
           🧬 <b>Linux version:</b> $LINUX_VER
           🛠 <b>Compiler:</b> $CLANG_VERSION
-          🧾 <b>Last 15 commits:</b>
+          🧾 <b>Last 10 commits:</b>
           $COMMITS_PRINT
-          🔗 <b>CI:</b> https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          🏷️ <b>Tags:</b> #$DATE #${KERNEL_NAME}KSU #stable"
+          🏷️ <b>Tags:</b> #$DATE #${KERNEL_NAME}KSU #stable
+          🔗 <b>CI:</b> <a href=\"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\">Click here</a>"
 
-          curl -s -X POST https://api.telegram.org/bot$BOT_TOKEN/sendMessage \
-            -d chat_id=$CHAT_ID \
-            --data-urlencode text="$TEXT" \
-            -d parse_mode="HTML"
-
-          curl -F document=@"$NEW_ZIP_NAME" -F chat_id=$CHAT_ID \
-               -F caption="$NEW_ZIP_NAME" https://api.telegram.org/bot$BOT_TOKEN/sendDocument
+          curl -F document=@"$NEW_ZIP_NAME" \
+               -F chat_id=$CHAT_ID \
+               -F caption="$CAPTION" \
+               -F parse_mode="HTML" \
+               https://api.telegram.org/bot$BOT_TOKEN/sendDocument
