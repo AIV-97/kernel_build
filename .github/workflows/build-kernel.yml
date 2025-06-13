@@ -142,12 +142,15 @@ jobs:
           DATE: ${{ env.DATE }}
           KERNEL_NAME: ${{ env.KERNEL_NAME }}
         run: |
+          # Ubah pipe ke newline
+          COMMITS_PRINT="$(echo "$LATEST_COMMITS" | tr '|' '\n')"
+
           TEXT="📦 <b>Kernel Build Success</b>
           🔀 <b>Branch:</b> $BRANCH
           🧬 <b>Linux version:</b> $LINUX_VER
           🛠 <b>Compiler:</b> $CLANG_VERSION
           🧾 <b>Last 10 commits:</b>
-          ${LATEST_COMMITS//|/$'\n'}
+          $COMMITS_PRINT
           🔗 <b>CI:</b> https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           🏷️ <b>Tags:</b> #$DATE #${KERNEL_NAME}KSU #stable"
 
