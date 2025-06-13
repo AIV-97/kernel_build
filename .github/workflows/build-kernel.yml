@@ -28,13 +28,19 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y bc bison flex libssl-dev make libc6-dev libncurses5 ccache python2 python3 build-essential device-tree-compiler libtinfo5 libselinux-dev curl git ftp lftp wget libarchive-tools zip unzip tar gzip bzip2 rar unrar
+          sudo apt update && sudo apt install -y \
+            bc bison flex libssl-dev make libc6-dev libncurses-dev \
+            ccache python3 python3-pip build-essential \
+            device-tree-compiler libtinfo5 libselinux-dev \
+            curl git wget lftp ftp zip unzip tar gzip bzip2 \
+            rar unrar zstd pigz libelf-dev libudev-dev \
+            libprotobuf-dev protobuf-compiler liblz4-tool \
+            libzstd-dev libarchive-tools rsync
 
       - name: Pull Clang Toolchain
         run: |
           mkdir -p clang          
-          curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250612-release/Clang-21.0.0git-20250612.tar.gz | tar -xzv -C clang
+          curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250613-release/Clang-21.0.0git-20250613.tar.gz | tar -xzv -C clang
 
       - name: Clone Kernel Source
         run: |
@@ -113,9 +119,21 @@ jobs:
           echo "BRANCH=${{ env.KERNEL_SOURCE_BRANCH }}" >> $GITHUB_ENV
           echo "DATE=$(date +%d%m%y)" >> $GITHUB_ENV
           echo "KERNEL_NAME=bengal" >> $GITHUB_ENV
-          echo "LINUX_VER=$(cat kernel-source/out/include/generated/utsrelease.h 2>/dev/null | cut -d '\"' -f2 || echo 'unknown')" >> $GITHUB_ENV
-          echo "LATEST_COMMIT=$(cd kernel-source && git log -1 --pretty=format:'%s (%an)' 2>/dev/null || echo 'unknown')" >> $GITHUB_ENV
-          echo "CLANG_VERSION=$(clang/bin/clang --version | head -n1)" >> $GITHUB_ENV
+          
+          echo "LINUX_VER=$(cd kernel-source && \
+          V=$(grep '^VERSION =' Makefile | cut -d '=' -f2 | xargs) && \
+          P=$(grep '^PATCHLEVEL =' Makefile | cut -d '=' -f2 | xargs) && \
+          S=$(grep '^SUBLEVEL =' Makefile | cut -d '=' -f2 | xargs) && \
+          echo "${V}.${P}.${S}")" >> $GITHUB_ENV
+          
+      - name: Get latest 10 commits
+        run: |
+          echo "LATEST_COMMITS=$(cd kernel-source && git log -10 --pretty=format:'• %s (%an)' | tr '\n' '|' || echo 'unknown')" >> $GITHUB_ENV
+
+      - name: Show latest 10 commits
+        run: |
+          echo "Latest 10 commits:"
+          echo "${LATEST_COMMITS//|/$'\n'}"
 
       - name: Upload Kernel ZIP to Telegram
         env:
