@@ -40,7 +40,7 @@ jobs:
       - name: Pull Clang Toolchain
         run: |
           mkdir -p clang          
-          curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250613-release/Clang-21.0.0git-20250613.tar.gz | tar -xzv -C clang
+          curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250615-release/Clang-21.0.0git-20250615.tar.gz | tar -xzv -C clang
 
       - name: Clone Kernel Source
         run: |
