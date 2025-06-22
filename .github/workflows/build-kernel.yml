@@ -40,7 +40,7 @@ jobs:
       - name: Pull Clang Toolchain
         run: |
           mkdir -p clang          
-          curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250621-release/Clang-21.0.0git-20250621.tar.gz | tar -xzv -C clang
+          curl -L https://github.com/ZyCromerZ/Clang/releases/download/21.0.0git-20250622-release/Clang-21.0.0git-20250622.tar.gz | tar -xzv -C clang
 
       - name: Clone Kernel Source
         run: |
@@ -65,24 +65,6 @@ jobs:
 
           make $KCFLAGS $args $KERNEL_CONFIG
           make -j$(nproc --ignore=2) $KCFLAGS $args
-
-      - name: Generate dtbo.img
-        run: |
-          set -e
-          DTBO_SRC_DIR=out/arch/arm64/boot/dts/qcom
-          DTBO_OUT=out/arch/arm64/boot/dtbo.img
-          MKDTBOIMG=kernel-source/scripts/mkdtboimg.py
-
-          echo "📦 Mencari *.dtbo di $DTBO_SRC_DIR ..."
-          if compgen -G "$DTBO_SRC_DIR/*.dtbo" > /dev/null; then
-            echo "✅ File .dtbo ditemukan, membuat dtbo.img..."
-            python3 $MKDTBOIMG create $DTBO_OUT \
-              --dtbo_dir=$DTBO_SRC_DIR \
-              --page_size=4096
-            echo "✅ Selesai membuat dtbo.img di $DTBO_OUT"
-          else
-            echo "⚠️ Tidak ada file .dtbo ditemukan di $DTBO_SRC_DIR, melewati generate dtbo.img"
-          fi
 
       - name: Package kernel
         run: |
